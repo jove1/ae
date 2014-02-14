@@ -6,17 +6,32 @@
 Welcome to AE's documentation!
 ==============================
 
-Contents:
-
-.. toctree::
-   :maxdepth: 2
-
+.. Contents:
+   .. toctree::
+    :maxdepth: 2
 
 
-Indices and tables
-==================
+:mod:`ae.ae`
+============
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+.. automodule:: ae.ae
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
+:mod:`ae.plot`
+==============
+
+.. automodule:: ae.plot
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
+:mod:`ae.wfs`
+==============
+
+.. automodule:: ae.wfs
+   :members:
+   :undoc-members:
+   :show-inheritance:
