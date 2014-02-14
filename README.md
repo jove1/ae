@@ -1,7 +1,7 @@
 ae
 ==
 
-Pyhton accoustic emission tools.
+Python accoustic emission tools.
 
 Features
 --------
