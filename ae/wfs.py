@@ -18,7 +18,7 @@ class Msg(OrderedDict):
         OrderedDict.__init__(self)
         self.id = id
 
-        self.label, func = self.messages[id]
+        self.label, func = self._messages[id]
         self.update( func(data) )
 
     def __str__(self):
@@ -32,13 +32,13 @@ class Msg(OrderedDict):
         return "\n".join(r)
 
 
-    def msg_174_106(data):
+    def _msg_174_106(data):
         l = map(ord, data)
         assert len(l) == l[1] + 2
         return [ ("group", l[0]), 
                  ("channels", l[2:])]
     
-    def msg_174_1(data):
+    def _msg_174_1(data):
         ver, sync, chan, fifo_w1, fifo_w2, fifo_r1, fifo_r2, o = unpack("HLLLLLL", data)
         import array
         d = array.array("h")
@@ -50,7 +50,7 @@ class Msg(OrderedDict):
                 ("fifo_r", (fifo_r1,fifo_r2*4)),
                 ("data",d)]
 
-    def msg_173_1(data):
+    def _msg_173_1(data):
         time1, time2, chan, o = unpack("LHH", data)
         import array
         d = array.array("h")
@@ -59,7 +59,7 @@ class Msg(OrderedDict):
                 ("chan",chan),
                 ("data", d)]
  
-    def msg_174_174(data):
+    def _msg_174_174(data):
         ver, n, o = unpack("HH", data)
         conf = []
         for i in range(n):
@@ -68,7 +68,7 @@ class Msg(OrderedDict):
         return [("ver", ver),
                 ("conf", conf)]
 
-    def msg_174_42(data):
+    def _msg_174_42(data):
         ver, ad_type, num, size, o = unpack("HBHH", data)
         conf = []
         while o < len(data):
@@ -83,44 +83,44 @@ class Msg(OrderedDict):
                 ("size", size),
                 ("conf", conf)]
 
-    dummy = lambda data: [("data", data)]
+    _dummy = lambda data: [("data", data)]
 
-    dummy_ver = lambda data: [ ("ver", unpack("H",data)[0]), ("data", data[2:])]
+    _dummy_ver = lambda data: [ ("ver", unpack("H",data)[0]), ("data", data[2:])]
     
-    messages = {
-        1: ("AE hit/Event Data", dummy),
-        2: ("Time Demand Data", dummy),
-        7: ("User Comments/Test Label", dummy),
-        9: ("Not Used", dummy),
-        11: ("Reset Real Time Clock", dummy),
-        15: ("Abort acquisition/transfer", dummy),
-        38: ("Test Info", dummy),
+    _messages = {
+        1: ("AE hit/Event Data", _dummy),
+        2: ("Time Demand Data", _dummy),
+        7: ("User Comments/Test Label", _dummy),
+        9: ("Not Used", _dummy),
+        11: ("Reset Real Time Clock", _dummy),
+        15: ("Abort acquisition/transfer", _dummy),
+        38: ("Test Info", _dummy),
         41: ("ASCII Product Definition", 
              lambda data: [ ("ver", unpack("xH",data)[1]), ("text", data[3:].rstrip("\r\n\x00\x1a"))]
             ),
-        42: ("Hardware Setup", dummy),
-        44: ("Location Setup", dummy),
-        49: ("Product Specific Setup & Configuration Information", dummy),
+        42: ("Hardware Setup", _dummy),
+        44: ("Location Setup", _dummy),
+        49: ("Product Specific Setup & Configuration Information", _dummy),
         
         99: ("Time and Date of Test Start", 
              lambda data: [("date", data.rstrip("\n\x00"))]
             ),
-        107: ("Reserved", dummy),
-        110: ("Define Group Parametric Channels", dummy),
-        116: ("Not Used", dummy),
-        128: ("Begin Test", dummy),
-        129: ("Stop Test", dummy),
-        130: ("Pause Test", dummy),
-        137: ("Analog Filter Selection", dummy),
+        107: ("Reserved", _dummy),
+        110: ("Define Group Parametric Channels", _dummy),
+        116: ("Not Used", _dummy),
+        128: ("Begin Test", _dummy),
+        129: ("Stop Test", _dummy),
+        130: ("Pause Test", _dummy),
+        137: ("Analog Filter Selection", _dummy),
         #173: ("AEDSP waveform recording", dummy),
-        (173, 1): ("Digital AE Waveform Data", msg_173_1),
+        (173, 1): ("Digital AE Waveform Data", _msg_173_1),
 
-        (174, 1): ("Digital AE Waveform Data", msg_174_1),
-        (174, 20): ("Pre-Amp Gain", dummy_ver),
-        (174, 23): ("Set Gain", dummy_ver),
-        (174, 42): ("Hardware Setup", msg_174_42),
-        (174, 106): ("Begin a Group Setup", msg_174_106),
-        (174, 174): ("??", msg_174_174),
+        (174, 1): ("Digital AE Waveform Data", _msg_174_1),
+        (174, 20): ("Pre-Amp Gain", _dummy_ver),
+        (174, 23): ("Set Gain", _dummy_ver),
+        (174, 42): ("Hardware Setup", _msg_174_42),
+        (174, 106): ("Begin a Group Setup", _msg_174_106),
+        (174, 174): ("??", _msg_174_174),
     }
 
 

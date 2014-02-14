@@ -49,10 +49,13 @@ class Downsampler:
         else:
             ax.set_ylim(self.data.min()*yscale, self.data.max()*yscale)
         
-        ax.callbacks.connect('xlim_changed', self.update)
+        ax.callbacks.connect('xlim_changed', self._update)
         ax.set_xlim(0,(self.data.size-1)*xscale)
 
-        
+    def _update(self, ax):
+        self.line.set_data(*self.resample(*ax.viewLim.intervalx))
+        ax.figure.canvas.draw_idle()
+
     def resample(self, a, b):
         a = int(np.floor(a/self.xscale))
         b = int(np.ceil(b/self.xscale))
@@ -93,7 +96,4 @@ class Downsampler:
         y *= self.yscale
         return x,y
 
-    def update(self, ax):
-        self.line.set_data(*self.resample(*ax.viewLim.intervalx))
-        ax.figure.canvas.draw_idle()
 
