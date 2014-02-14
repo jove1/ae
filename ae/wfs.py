@@ -124,8 +124,9 @@ class Msg(OrderedDict):
     }
 
 
+from .ae import Event, Data
 
-class WFS:
+class WFS(Data):
     def __init__(self, fname):
         self.fname = fname
         fh = open(fname,"rb")
@@ -190,7 +191,6 @@ class WFS:
 
     def get_events(self, thresh, hdt=1000, dead=1000):
         from ._wfs_events import _get_events
-        from .ae import Event
 
         import time
         from sys import stderr

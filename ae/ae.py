@@ -22,3 +22,13 @@ class Event:
         from numpy import argmax
         self.rise = argmax(data)
         self.count = (data>thresh).sum()
+
+class Data:
+    def __init__(self, fname):
+        raise NotImplementedError() 
+
+    def plot(self, **kwargs):
+        raise NotImplementedError() 
+   
+    def get_events(self, thresh, hdt=1000, dead=1000):
+        raise NotImplementedError()
