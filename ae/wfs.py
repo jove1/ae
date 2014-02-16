@@ -182,7 +182,7 @@ class WFS(Data):
                 dtype=dtype([
                     ("size", "h"), 
                     ("msg", "S28"), 
-                    ("data", "1024h")]), 
+                    ("data", "h", (1024,))]), 
                 offset=data_offset, 
                 count=num_data)
         self.data = b['data'] 
