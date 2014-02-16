@@ -8,7 +8,7 @@ Features
 
 * read *.wfs files
 * event extractor
-* decimated waveform plotting
+* interactive decimated waveform plotting
 * optimized for files bigger than RAM
 
 [Example](http://nbviewer.ipython.org/github/jove1/ae/blob/master/doc/example.ipynb)
@@ -20,7 +20,7 @@ Features
 100% 0.65s
 >>> print f.data.size
 642798592
->>> f.plot()
+>>> f.plot() # figure can be zoomed interactively
 100% 1.71s
 ```
 ![Graph](doc/view.png)
