@@ -132,11 +132,11 @@ class WFS(Data):
         fh = open(fname,"rb")
         import mmap, sys, time
         start = time.time()
-        self.mmap = mmap = mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ)
+        mem = mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ)
         
         offset = 0
         print_offset = 0
-        total_size = len(mmap)
+        total_size = len(mem)
         reading_data = 'not yet'
         data_offset = None
         num_data = 0
@@ -144,7 +144,7 @@ class WFS(Data):
         self.meta = OrderedDict()
         from struct import unpack_from
         while offset < total_size:
-            length, id1, id2 = unpack_from("HBB", mmap, offset)
+            length, id1, id2 = unpack_from("HBB", mem, offset)
            
             if id1 == 174 and id2 == 1:
                 assert length == 2048+28
@@ -162,7 +162,7 @@ class WFS(Data):
                 else:
                     msg_id, msg_offset, msg_length = id1, offset+3, length-1
 
-                data = mmap[msg_offset:msg_offset+msg_length]
+                data = mem[msg_offset:msg_offset+msg_length]
                 msg = Msg(msg_id, data)
                 self.meta[msg.label] = Msg(msg_id, data)
 
@@ -177,10 +177,15 @@ class WFS(Data):
         self.timescale = 1e-3/self.meta['Hardware Setup']['conf'][0]['rate']
         self.datascale = self.meta['Hardware Setup']['conf'][0]['max.volt']/32768.
         
-        from numpy import frombuffer
-        a = frombuffer(mmap, dtype="h", offset=data_offset, count=num_data*(2048+28+2)/2)
-        a.shape = (num_data, (2048+28+2)/2)
-        self.data = a[:,-1024:]
+        from numpy import frombuffer, dtype
+        b = frombuffer(mem, 
+                dtype=dtype([
+                    ("size", "h"), 
+                    ("msg", "S28"), 
+                    ("data", "1024h")]), 
+                offset=data_offset, 
+                count=num_data)
+        self.data = b['data'] 
 
     def __str__(self):
         return "\n".join( str(m) for m in self.meta.values())
