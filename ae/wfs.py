@@ -192,8 +192,7 @@ class WFS(Data):
     def get_events(self, thresh, hdt=1000, dead=1000):
         from ._wfs_events import _get_events
 
-        import time
-        from sys import stderr
+        import time, sys
         _thresh = int(thresh/self.datascale)
         _hdt = int(hdt) #TODO convert from microseconds
         _dead = int(dead)
@@ -204,9 +203,9 @@ class WFS(Data):
             ret.append( Event(a, b+_hdt, data.flat[a:b+_hdt]*self.datascale, thresh) )
         
         start = time.time()
-        _get_events(callback, data, _thresh, _hdt, _dead, stderr)
-        stderr.write("\r{:.0f}% {:.2f}s\n".format(100., time.time()-start))
-        stderr.write("{} events\n".format(len(ret)))
+        _get_events(callback, data, _thresh, _hdt, _dead)
+        sys.stderr.write("\r{:.0f}% {:.2f}s\n".format(100., time.time()-start))
+        sys.stderr.write("{} events\n".format(len(ret)))
         return ret
 
 def build_ext(location="."):
@@ -216,7 +215,6 @@ def build_ext(location="."):
 
     # define parameter types
     threshold = hdt = dead = 0
-    from sys import stderr
     from numpy import empty
     data = empty(shape=(0,0), dtype='h')
     def callback(a,b):
@@ -250,7 +248,7 @@ def build_ext(location="."):
         PyObject_CallFunction(py_callback, "(ii)", event_start, last); 
     }
 
-    ''', ['callback', 'data', 'threshold', 'hdt', 'dead', 'stderr'])
+    ''', ['callback', 'data', 'threshold', 'hdt', 'dead'])
     mod.add_function(func)
     
     return mod.setup_extension(location=location)

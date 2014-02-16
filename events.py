@@ -6,13 +6,14 @@ if __name__ == "__main__":
     events = f.get_events(thresh=0.02, hdt=1000, dead=1000)
 
     from pylab import *
-    from ae.plot import logloghist
     
     figure(figsize=(12,6))
     for i,l in enumerate(["max", "max2", "duration", "energy", "rise", "count"]):
         subplot(2,3,i+1)
         title(l)
-        logloghist([getattr(e,l) for e in events])
+        hist, bins = ae.loghist([getattr(e,l) for e in events])
+        plot( (bins[1:]+bins[:-1])/2, hist, "o")
+        loglog()
         grid(True)
 
     

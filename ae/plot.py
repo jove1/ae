@@ -3,16 +3,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
-def logloghist(data, bins=50):
-    data = np.asarray(data)
-    a,b = data.min(), data.max()
-    if a == 0:
-        a = b/1000.
-    bins = np.exp(np.linspace(np.log(a), np.log(b), bins))
-    h, bins = np.histogram(data, bins)
-    plt.plot( (bins[1:]+bins[:-1])/2, h, "o")
-    plt.loglog()
-
 class Downsampler:
     def __init__(self, data, xscale=1, yscale=1, ax=None, num=2048, **kwargs):
         if len(data.shape) > 1: # discontigous data stored as 2d array

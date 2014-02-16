@@ -19,19 +19,19 @@ Python acoustic emission tools
    :undoc-members:
    :show-inheritance:
 
-:mod:`ae.plot`
-==============
-
-.. automodule:: ae.plot
+.. :mod:`ae.plot`
+ ==============
+ 
+ .. automodule:: ae.plot
    :members:
    :undoc-members:
    :show-inheritance:
 
 
-:mod:`ae.wfs`
-==============
+ :mod:`ae.wfs`
+ ==============
 
-.. automodule:: ae.wfs
+ .. automodule:: ae.wfs
    :members:
    :undoc-members:
    :show-inheritance:
