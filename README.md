@@ -9,7 +9,7 @@ Features
 * read *.wfs files
 * event extractor
 * decimated waveform plotting
-* optimized for bigger than RAM files
+* optimized for files bigger than RAM
 
 [Example](http://nbviewer.ipython.org/github/jove1/ae/blob/master/doc/example.ipynb)
 ------------------------------------------------------------------------------------
