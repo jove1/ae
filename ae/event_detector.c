@@ -54,76 +54,52 @@ static PyMemberDef EventDetector_members[] = {
 };
 
 
+static inline void func(int i, short d, int threshold, int hdt, int dead, EventDetector* self){
+}
+
+
 static PyObject *EventDetector_process(EventDetector* self, PyObject *args, PyObject *kwds) {
     int threshold, hdt = 1000, dead = 1000;
-    PyArrayObject *data = NULL;
+    PyObject *data = NULL;
     
     static char *kwlist[] = {"data", "threshold", "hdt", "dead", NULL};
     if (! PyArg_ParseTupleAndKeywords(args, kwds, "Oi|ii", kwlist, &data, &threshold, &hdt, &dead))
         return NULL;
     
-    if (!data || !PyArray_Check(data)) {
-        PyErr_SetString(PyExc_TypeError, "data must be array");
+    if (!data || !PyArray_Check(data) || PyArray_TYPE(data) != PyArray_SHORT) {
+        PyErr_SetString(PyExc_TypeError, "data must be array with 'i2' dtype");
         return NULL;
     }
-
-    if (PyArray_TYPE(data) != PyArray_SHORT){
-        PyErr_SetString(PyExc_TypeError, "data.dtype must be short");
+    
+    PyArrayIterObject *iter = (PyArrayIterObject *)PyArray_IterNew(data); 
+    if (!iter)
         return NULL;
+    
+    while (PyArray_ITER_NOTDONE(iter)) {
+        const short d = *(short*)PyArray_ITER_DATA(iter);
+        const int i = iter->index;
+        if (d > threshold) {
+            if (self->last == -1) {
+                self->last = self->event_start = i;
+
+            } else if (i > self->last+hdt+dead) {
+                if (self->callback)
+                    PyObject_CallFunction(self->callback, "(ii)", self->event_start, self->last);
+
+                self->last = self->event_start = i;
+
+            } else if (i < self->last+hdt) {
+                self->last = i;
+            }
+        }
+        PyArray_ITER_NEXT(iter);
     }
 
-    
-    Py_INCREF(data);
-
-#define LOOP_BODY                                    \
-        if (d > threshold) {                         \
-            if (self->last == -1) {                  \
-                self->last = self->event_start = i;  \
-                                                     \
-            } else if (i > self->last+hdt+dead) {    \
-                if (self->callback)                  \
-                    PyObject_CallFunction(self->callback, "(ii)", self->event_start, self->last); \
-                                                     \
-                self->last = self->event_start = i;  \
-                                                     \
-            } else if (i < self->last+hdt) {         \
-                self->last = i;                      \
-            }                                        \
-        }                                            \
-
-    int i;
-    const int size = PyArray_SIZE(data);
-    switch ( PyArray_NDIM(data) ){
-        case 1: 
-            for (i=0; i<size; ++i){
-                short d = *(short*)PyArray_GETPTR1(data, i);
-                LOOP_BODY
-            }
-            break;
-        case 2:
-            for (i=0; i<size; ++i){
-                short d = *(short*)PyArray_GETPTR2(data, i/data->dimensions[1], i%data->dimensions[1]);
-                LOOP_BODY
-            }
-            break;
-        default:
-            for (i=0; i<size; ++i){
-                int k=i, offset=0, j;
-                for (j=data->nd-1; j>=0; --j) {
-                    offset += data->strides[j] * (k % data->dimensions[j]);
-                    k /= data->dimensions[j];
-                }
-                short d = *((short*)(data->data + offset));
-                LOOP_BODY
-            }    
-    }
-    
     if (self->last != -1){
         if (self->callback)
             PyObject_CallFunction(self->callback, "(ii)", self->event_start, self->last); 
     }
-    
-    Py_DECREF(data);
+
     Py_RETURN_NONE;
 }
 

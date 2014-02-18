@@ -2,9 +2,19 @@
 
 if __name__ == "__main__":
     import sys, ae
-    f = ae.open(sys.argv[1])
-    events = f.get_events(thresh=0.02, hdt=1000, dead=1000)
+    x = ae.open(sys.argv[1])
+    
+    events = []
+    def f(a,b):
+        events.append((a,b))
+    from ae.event_detector import EventDetector
+    det = EventDetector(f)
+    for _, pos, d in x.iter_blocks(channel=0):
+        det.process(d, 65)
+    print len(events), "events"
 
+
+    """
     from pylab import *
     
     figure(figsize=(12,6))
@@ -26,3 +36,4 @@ if __name__ == "__main__":
 
 
     show()
+    """
