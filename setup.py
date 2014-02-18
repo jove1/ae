@@ -1,9 +1,5 @@
 
-from numpy.distutils.core import setup
-
-import ae.wfs
-wfs_ext = ae.wfs.build_ext("ae")
-wfs_ext.name = 'ae.' + wfs_ext.name
+from numpy.distutils.core import setup, Extension
 
 setup(name='ae',
       version='0.1',
@@ -13,6 +9,8 @@ setup(name='ae',
       #url='',
       packages=['ae'],
       scripts=['viewer.py', 'events.py'],
-      ext_modules=[wfs_ext]
+      ext_modules=[
+          Extension('ae.event_detector', sources = ['ae/event_detector.c']),
+          ]
       )
 
