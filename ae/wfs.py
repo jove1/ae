@@ -128,11 +128,13 @@ from .ae import Event, Data
 
 class WFS(Data):
     def __init__(self, fname):
-        self.fname = fname
-        fh = open(fname,"rb")
         import mmap, sys, time
+        
         start = time.time()
-        mem = mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ)
+        with open(fname, "rb") as fh:
+            mem = mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ)
+        
+        self.fname = fname
         
         offset = 0
         print_offset = 0
@@ -145,7 +147,7 @@ class WFS(Data):
         from struct import unpack_from
         while offset < total_size:
             length, id1, id2 = unpack_from("HBB", mem, offset)
-           
+
             if id1 == 174 and id2 == 1:
                 assert length == 2048+28
                 assert reading_data != 'done'
@@ -177,12 +179,13 @@ class WFS(Data):
         self.timescale = 1e-3/self.meta['Hardware Setup']['conf'][0]['rate']
         self.datascale = self.meta['Hardware Setup']['conf'][0]['max.volt']/32768.
         
-        from numpy import frombuffer, dtype
+        from numpy import frombuffer
         b = frombuffer(mem, 
-                dtype=dtype([
-                    ("size", "h"), 
-                    ("msg", "S28"), 
-                    ("data", "h", (1024,))]), 
+                dtype=[("size", "h"),
+                       ("id1", "u1"),
+                       ("id2", "u1"),
+                       ("unknown", "V26"),
+                       ("data", "h", (1024,))], 
                 offset=data_offset, 
                 count=num_data)
         self.data = b['data'] 

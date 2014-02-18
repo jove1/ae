@@ -1,7 +1,6 @@
 #!/usr/bin/python
 
 import numpy as np
-from matplotlib import pyplot as plt
 
 class Downsampler:
     def __init__(self, data, xscale=1, yscale=1, ax=None, num=2048, **kwargs):
@@ -31,7 +30,8 @@ class Downsampler:
         self.num = num
 
         if ax is None:
-            ax = plt.gca()
+            from matplotlib.pyplot import gca
+            ax = gca()
         self.line, = ax.plot([],[], **kwargs)
 
         if len(data.shape) > 1:
