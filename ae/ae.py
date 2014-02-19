@@ -141,6 +141,20 @@ class Data:
         
         return line
 
+    def get_events(self, thresh, hdt=1000, dead=1000, channel=0):
+        _thresh = int(thresh/self.datascale)
+        _hdt = int(hdt/self.timescale) 
+        _dead = int(dead/self.timescale)
+
+        last = None
+        events = []
+        from .event_detector import process_block
+        for _, pos, d in self.iter_blocks(channel=channel):
+            _, last = process_block(d, _thresh, hdt=_hdt, dead=_dead, list=events, event=last, pos=pos)
+        if last:
+            events.append(last)
+        return events
+
 class SDCF(Data):
     def __init__(self, fname, checks=False):
         import glob

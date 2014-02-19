@@ -3,17 +3,9 @@
 if __name__ == "__main__":
     import sys, ae
     x = ae.open(sys.argv[1])
-    
-    from ae.event_detector import process_block
-    events = []
-    last = None
-    for _, pos, d in x.iter_blocks(channel=0):
-        l,last = process_block(d, 65, list=events, event=last, pos=pos)
-    if last:
-        events.append(last)
+   
+    events = x.get_events(65)
     print len(events), "events"
-
-
 
 
 
