@@ -4,14 +4,17 @@ if __name__ == "__main__":
     import sys, ae
     x = ae.open(sys.argv[1])
     
+    from ae.event_detector import process_block
     events = []
-    def f(a,b):
-        events.append((a,b))
-    from ae.event_detector import EventDetector
-    det = EventDetector(f)
+    last = None
     for _, pos, d in x.iter_blocks(channel=0):
-        det.process(d, 65)
+        l,last = process_block(d, 65, list=events, event=last, pos=pos)
+    if last:
+        events.append(last)
     print len(events), "events"
+
+
+
 
 
     """
