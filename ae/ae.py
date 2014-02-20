@@ -39,7 +39,10 @@ class Data:
     def __repr__(self):
         return "{}({!r})".format(self.__class__.__name__, self.fname)
 
-    def iter_blocks(self, start=0, stop=float('inf'), channel=slice(None), progress=True):
+    progress = True
+    def iter_blocks(self, start=0, stop=float('inf'), channel=slice(None), progress=None):
+        if progress is None:
+            progress = self.progress
         import sys, time
         start_time = time.time()
         for pos, raw in self.raw_iter_blocks(start, stop):
@@ -142,7 +145,7 @@ class Data:
         
         return line
 
-    def get_events(self, thresh, hdt=1000, dead=1000, channel=0):
+    def get_events(self, thresh, hdt=0.001, dead=0.001, channel=0):
         raw_thresh = int(thresh/self.datascale)
         raw_hdt = int(hdt/self.timescale) 
         raw_dead = int(dead/self.timescale)

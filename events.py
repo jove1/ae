@@ -4,7 +4,7 @@ if __name__ == "__main__":
     import sys, ae
     x = ae.open(sys.argv[1])
    
-    events = x.get_events(65)
+    events = x.get_events(0.02)
     print len(events), "events"
 
 
