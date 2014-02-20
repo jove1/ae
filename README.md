@@ -7,6 +7,7 @@ Features
 --------
 
 * read *.wfs files
+* read *.sdcf files
 * event extractor
 * interactive decimated waveform plotting
 * optimized for files bigger than RAM
@@ -18,9 +19,9 @@ Features
 >>> import ae
 >>> f = ae.open("M5.wfs")
 100% 0.65s
->>> print f.data.size
+>>> print f.size
 642798592
->>> f.plot() # figure can be zoomed interactively
+>>> f.plot()
 100% 1.71s
 ```
 ![Graph](doc/view.png)
