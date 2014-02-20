@@ -27,7 +27,7 @@ Features
 >>> events = f.get_events(0.02)
 >>> print len(events)
 6161
->>> hist, bins = ae.loghist([e.max for e in events])
+>>> hist, bins = ae.loghist(event.maxima)
 >>> plot( (bins[1:]+bins[:-1])/2, hist, "o")
 ```
 ![Graph](doc/hist.png)
