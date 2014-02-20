@@ -7,6 +7,7 @@ Features
 --------
 
 * read *.wfs files
+* read *.sdcf files
 * event extractor
 * interactive decimated waveform plotting
 * optimized for files bigger than RAM
