@@ -18,7 +18,7 @@ Features
 >>> import ae
 >>> f = ae.open("M5.wfs")
 100% 0.65s
->>> print f.data.size
+>>> print f.size
 642798592
 >>> f.plot() # figure can be zoomed interactively
 100% 1.71s
