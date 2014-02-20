@@ -14,6 +14,6 @@ if __name__ == "__main__":
         ae.xpan()
         legend()
         grid()
-        xlabel("time [s]")
-        ylabel("amplitude [V]")
+        xlabel("time [{}]".format(x.timeunit))
+        ylabel("amplitude [{}]".format(x.dataunit))
     show()

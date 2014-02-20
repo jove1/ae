@@ -165,8 +165,10 @@ class SDCF(Data):
        
         with file(fname,"rb") as fh:
             self.meta = fh.read(124)
-        self.datascale = 1
-        self.timescale = 1
+        self.datascale = 1/32768.
+        self.timescale = 1e-6
+        self.timeunit = "?"
+        self.dataunit = "?"
 
         import os
         file_size = sum( os.stat(fname).st_size for fname in self.fnames)
@@ -245,6 +247,8 @@ class WFS(Data):
 
         self.datascale = self.meta['hwsetup']['max.volt']/32768.
         self.timescale = 0.001/self.meta['hwsetup']['rate']
+        self.timeunit = "s"
+        self.dataunit = "V"
 
     def parse_meta(self, data, unknown_meta=False):
         from struct import unpack_from,  calcsize
