@@ -34,8 +34,62 @@ def loghist(data, bins=50, range=None):
     hist, bins = np.histogram(data, bins)
     return hist, bins
 
-class Data:
+from collections import namedtuple
+Event = namedtuple("Event", "start, data, all_data, len")
+Event.energy = property(lambda e: (e.data**2).sum() )
+Event.max = property(lambda e: e.data.max() )
+Event.rise_time = property(lambda e: np.argmax(e.data) )
+Event.count = lambda e, thresh: np.logical_and(e.data[:-1]<thresh, e.data[1:]>=thresh).sum() + 1 # one for first event :)
 
+class Events(list):
+    def __repr__(self):
+        return "Events(<{} events>)".format(len(self))
+
+    def _make_property(name):
+        return property(lambda self: np.array([getattr(e,name) for e in self]))
+
+    durations = _make_property("len") 
+    energies = _make_property("energy") 
+    maxima = _make_property("max") 
+    rise_times = _make_property("rise_time")
+
+    counts = property(lambda self: np.array([ e.count(self.thresh) for e in self]))
+
+    del _make_property
+
+    def add_event(self, start, a, b, prev_data, data, scale):
+        margin = self.margin
+        assert a<b # sanity
+
+        if a-margin < 0:
+            assert a-margin > -prev_data.size
+            if b+margin <0:
+                # whole event in prev_data, we waited only for dead time 
+                ev_data = prev_data[a-margin:b+margin]*scale
+            else:
+                # part in prev_data part in data
+                assert b+margin < data.size
+                ev_data = np.concatenate((
+                    prev_data[a-margin:],
+                    data.flat[:b+margin]
+                ))*scale
+        else:
+            if b+margin < data.size:
+                # all in data
+                ev_data = data.flat[a-margin:b+margin]*scale
+            else:
+                # pad with zeros
+                assert a-margin < data.size
+                ev_data = np.concatenate((
+                    data.flat[a-margin:],
+                    np.zeros(b+margin-data.size, dtype=self.dtype)
+                ))*scale
+        
+        assert ev_data.size == margin + b-a + margin
+        self.append( Event(start, ev_data[margin:-margin], ev_data, b-a) )
+
+
+class Data:
     def __repr__(self):
         return "{}({!r})".format(self.__class__.__name__, self.fname)
 
@@ -145,18 +199,29 @@ class Data:
         
         return line
 
-    def get_events(self, thresh, hdt=0.001, dead=0.001, channel=0):
+    def get_events(self, thresh, hdt=0.001, dead=0.001, channel=0, margin=50):
         raw_thresh = int(thresh/self.datascale)
         raw_hdt = int(hdt/self.timescale) 
         raw_dead = int(dead/self.timescale)
 
         last = None
-        events = []
+        events = Events()
+        events.margin = margin
+        events.thresh = thresh
+        events.hdt = hdt
+
+        prev_data = np.zeros(raw_hdt+raw_dead+margin, dtype=self.dtype)
         from .event_detector import process_block
-        for pos, d in self.iter_blocks(channel=channel):
-            _, last = process_block(d, raw_thresh, hdt=raw_hdt, dead=raw_dead, list=events, event=last, pos=pos)
+        for pos, data in self.iter_blocks(channel=channel):
+            ev, last = process_block(data, raw_thresh, hdt=raw_hdt, dead=raw_dead, event=last, pos=pos)
+            for start,end in ev:
+                events.add_event(start, start-pos, end-pos, prev_data, data, self.datascale)
+            
+            prev_data = data.flat[-raw_hdt-raw_dead-margin:]
+
         if last:
-            events.append(last)
+            events.add_event(start, start-pos, end-pos, None, data, self.datascale)
+
         return events
 
 class SDCF(Data):

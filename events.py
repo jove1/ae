@@ -9,26 +9,22 @@ if __name__ == "__main__":
 
 
 
-    """
     from pylab import *
     
     figure(figsize=(12,6))
-    for i,l in enumerate(["max", "max2", "duration", "energy", "rise", "count"]):
+    for i,l in enumerate("durations energies maxima rise_times counts".split()):
         subplot(2,3,i+1)
         title(l)
-        hist, bins = ae.loghist([getattr(e,l) for e in events])
+        hist, bins = ae.loghist(getattr(events,l))
         plot( (bins[1:]+bins[:-1])/2, hist, "o")
         loglog()
         grid(True)
-
+    tight_layout()
     
     figure()
     for e in events:
-        if e.duration > 10000:
-            plot(e.start+arange(e.data.size), e.data)
-    #xlim(0,f.data.size)
+        if e.len > 10000:
+            plot(e.start + arange(-events.margin, e.len + events.margin), e.all_data)
     grid()
 
-
     show()
-    """
