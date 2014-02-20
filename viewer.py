@@ -7,14 +7,13 @@ if __name__ == "__main__":
         x = ae.open(fname)
         print x
         figure(fname, figsize=(8,4))
-        subplots_adjust(0.10,0.10,0.98,0.95)
-        #subplots_adjust(0.12,0.15,0.98,0.98)
+        subplots_adjust(0.12,0.15,0.98,0.95)
 
         for ch in range(x.channels)[::-1]:
             x.plot(channel=ch, label="ch#{}".format(ch))
         ae.xpan()
         legend()
         grid()
-        #xlabel("time [s]")
-        #ylabel("amplitude [V]")
+        xlabel("time [s]")
+        ylabel("amplitude [V]")
     show()

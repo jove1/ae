@@ -42,11 +42,11 @@ class Data:
     def iter_blocks(self, start=0, stop=float('inf'), channel=slice(None), progress=True):
         import sys, time
         start_time = time.time()
-        for block, pos, raw in self.raw_iter_blocks(start, stop):
-            self.check_block(block, pos, raw)
-            yield block, pos, self.get_block_data(raw)[..., channel]
+        for pos, raw in self.raw_iter_blocks(start, stop):
+            self.check_block(pos, raw)
+            yield pos, self.get_block_data(raw)[..., channel]
             if progress:
-                sys.stderr.write("\r{:.0f}%".format(100.*block/self.shape[0]))
+                sys.stderr.write("\r{:.0f}%".format(100.*pos/self.size))
                 sys.stderr.flush()
         if progress:
             sys.stderr.write("\r{:.0f}% {:.2f}s\n".format(100., time.time()-start_time))
@@ -72,9 +72,11 @@ class Data:
         
         mins = np.empty(self.shape[:-1], dtype=self.dtype)
         maxs = np.empty(self.shape[:-1], dtype=self.dtype)
-        for block, _, d in self.iter_blocks(channel=channel):
+        block = 0
+        for _, d in self.iter_blocks(channel=channel):
             d.min(axis=-1, out=mins[block:block+d.shape[0]])
             d.max(axis=-1, out=maxs[block:block+d.shape[0]])
+            block += d.shape[0]
         mins.shape = (mins.size,)
         maxs.shape = (maxs.size,)
 
@@ -106,7 +108,7 @@ class Data:
             b *= r
         else:
             blocks = []
-            for _, pos, d in self.iter_blocks(start=a//s*s, stop=b//s*s, channel=channel, progress=False):
+            for pos, d in self.iter_blocks(start=a//s*s, stop=b//s*s, channel=channel, progress=False):
                 aa = np.clip(a//s*s-pos, 0, d.size)
                 bb = np.clip(b//s*s-pos, 0, d.size)
                 blocks.append(d.flat[aa:bb])
@@ -116,9 +118,8 @@ class Data:
 
         x = np.empty(2*mins.shape[0])
         y = np.empty(2*mins.shape[0])
-        x[::2] = x[1::2] = np.arange(a//s*s*self.timescale,
-                                     b//s*s*self.timescale,
-                                     s*self.timescale)
+        x[::2] = x[1::2] = np.arange(a//s*s, b//s*s, s)*self.timescale
+
         mins.min(axis=-1, out=y[::2])
         maxs.max(axis=-1, out=y[1::2])
         y *= self.datascale
@@ -142,15 +143,15 @@ class Data:
         return line
 
     def get_events(self, thresh, hdt=1000, dead=1000, channel=0):
-        _thresh = int(thresh/self.datascale)
-        _hdt = int(hdt/self.timescale) 
-        _dead = int(dead/self.timescale)
+        raw_thresh = int(thresh/self.datascale)
+        raw_hdt = int(hdt/self.timescale) 
+        raw_dead = int(dead/self.timescale)
 
         last = None
         events = []
         from .event_detector import process_block
-        for _, pos, d in self.iter_blocks(channel=channel):
-            _, last = process_block(d, _thresh, hdt=_hdt, dead=_dead, list=events, event=last, pos=pos)
+        for pos, d in self.iter_blocks(channel=channel):
+            _, last = process_block(d, raw_thresh, hdt=raw_hdt, dead=raw_dead, list=events, event=last, pos=pos)
         if last:
             events.append(last)
         return events
@@ -189,7 +190,7 @@ class SDCF(Data):
                 ])
     get_block_data = staticmethod(lambda d: d['data']['data'])
 
-    def check_block(self, block, pos, raw):
+    def check_block(self, pos, raw):
         if self.checks:
             assert pos == raw['data']['offset'][0,0]
 
@@ -200,9 +201,8 @@ class SDCF(Data):
         buffer = np.empty(1, self.block_dtype)
         block_size = self.get_block_data(buffer)[0,...,0].size
         
-        pos = start // block_size 
-        
-        seek = pos*buffer.itemsize
+        pos = start//block_size*block_size
+        seek = start//block_size*buffer.itemsize
         for fname in self.fnames:
             with io.open(fname, "rb", buffering=0) as fh:
                 file_size = os.fstat(fh.fileno()).st_size
@@ -222,32 +222,81 @@ class SDCF(Data):
                     else:
                         assert offset + read == buffer.size*buffer.itemsize
                         offset = 0
-                        yield pos, pos*block_size, buffer
-                        pos += buffer.size
-                        if pos*block_size > stop:
+                        yield pos, buffer
+                        pos += buffer.size*block_size
+                        if pos > stop:
                             return
 
         remains = offset // buffer.itemsize
         if remains:
-            yield pos, pos*block_size, buffer[:remains]
+            yield pos, buffer[:remains]
 
 class WFS(Data):
 
-    def __init__(self, fname, checks=False):
+    def __init__(self, fname, checks=False, unknown_meta=False):
         self.fname = fname 
-        self.datascale = 1
-        self.timescale = 1
         self.checks = checks
 
-        import struct, os, io
-        signature = struct.pack("HBB", 2076, 174, 1)
-        
+        import os
         with file(self.fname, "rb") as fh:
-            self._offset = fh.read(1024).find(signature)
             file_size = os.fstat(fh.fileno()).st_size
-            self.meta = ""
-
+            self._offset = self.parse_meta(fh.read(1024), unknown_meta=unknown_meta)
         self.calc_sizes(file_size-self._offset)
+
+        self.datascale = self.meta['hwsetup']['max.volt']/32768.
+        self.timescale = 0.001/self.meta['hwsetup']['rate']
+
+    def parse_meta(self, data, unknown_meta=False):
+        from struct import unpack_from,  calcsize
+        from collections import OrderedDict
+        self.meta = OrderedDict()
+        offset = 0
+        while offset < len(data):
+            size, id1, id2 = unpack_from("<HBB", data, offset)
+            if (size, id1, id2) == (2076, 174, 1):
+                return offset
+            offset += 2
+            if id1 in (173, 174): 
+                # these have two ids
+                offset += 2
+                size -= 2
+                if (id1, id2) == (174,42):
+                    fmt = [("ver", "H"),
+                         ("AD", "B"),
+                         ("num", "H"),
+                         ("size", "H"),
+
+                         ("id", "B"),
+                         ("unk1", "H"),
+                         ("rate", "H"),
+                         ("trig.mode", "H"),
+                         ("trig.src", "H"),
+                         ("trig.delay", "h"),
+                         ("unk2", "H"),
+                         ("max.volt", "H"),
+                         ("trig.thresh", "H"),
+                    ]
+                    sfmt = "<"+"".join(code for name,code in fmt)
+                    assert calcsize(sfmt) == size
+                    self.meta['hwsetup'] = OrderedDict(zip(
+                        [name for name, code in fmt], 
+                        unpack_from(sfmt, data, offset)))
+                elif unknown_meta:
+                    self.meta[(id1,id2)] = data[offset:offset+size]
+            else: 
+                # only one id
+                offset += 1
+                size -= 1
+                if id1 == 99:
+                    self.meta['date'] = data[offset:offset+size].rstrip("\0\n")
+                elif id1 == 41:
+                    self.meta['product'] = OrderedDict([
+                        ("ver", unpack_from("<xH", data, offset)[0]), 
+                        ("text", data[offset+3:offset+size].rstrip("\r\n\0\x1a"))])
+                elif unknown_meta:
+                    self.meta[id1] = data[offset:offset+size]
+            offset += size
+        raise ValueError("Data block not found")
 
 
     block_dtype = np.dtype([
@@ -258,7 +307,7 @@ class WFS(Data):
             ("data", "i2", (1024,1))])
     get_block_data = staticmethod(lambda d: d['data'])
  
-    def check_block(self, block, pos, raw):
+    def check_block(self, pos, raw):
         if self.checks:
             assert np.alltrue(raw['size'] == 2076) 
             assert np.alltrue(raw['id1'] == 174) 
@@ -269,25 +318,25 @@ class WFS(Data):
         buffer = np.empty(8000, self.block_dtype)
         block_size = self.get_block_data(buffer)[0,...,0].size
         
-        pos = start // block_size 
-
+        pos = start//block_size*block_size
+        seek = start//block_size*buffer.itemsize
         with io.open(self.fname, "rb", buffering=0) as fh:
-            fh.seek( self._offset + pos*buffer.itemsize )
+            fh.seek( self._offset + seek)
             while True:
                 read = fh.readinto(buffer)
                 if read < buffer.size*buffer.itemsize:
                     break
                 else:
-                    yield pos, pos*block_size, buffer
-                    pos += buffer.size
-                    if pos*block_size > stop:
+                    yield pos, buffer
+                    pos += buffer.size*block_size
+                    if pos > stop:
                         return 
 
         remains = read // buffer.itemsize
         if remains:
-            yield pos, pos*block_size, buffer[:remains]
+            yield pos, buffer[:remains]
 
-def open(fname):
+def open(fname, checks=False):
     """
     Opens file using appropriate :class:`Data` subclass. Currently 
     supports .wfs format. 
@@ -300,9 +349,9 @@ def open(fname):
     _, ext = os.path.splitext(fname)
     ext = ext.lower()
     if ext == ".wfs":
-        return WFS(fname)
+        return WFS(fname, checks=checks)
     elif ext == ".sdcf":
-        return SDCF(fname)
+        return SDCF(fname, checks=checks)
     else:
         raise NotImplementedError("Unknown format {}".format(ext))
 
