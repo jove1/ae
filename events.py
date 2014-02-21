@@ -23,8 +23,13 @@ if __name__ == "__main__":
     
     figure()
     for e in events:
-        if e.len > 10000:
-            plot(e.start + arange(-events.margin, e.len + events.margin), e.all_data)
+        #if e.data.size > 10000:
+        if 1:
+            plot(e.start + arange(-events.pre, e.data.size-events.pre), e.data)
+            axhline(events.thresh,color="k")
+            axvspan(e.start, e.start+e.data.size-events.post-events.pre-1, color="k", alpha=0.2)
+            print e.count(events.thresh)
+            break
     grid()
 
     show()

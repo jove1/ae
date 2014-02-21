@@ -34,59 +34,67 @@ def loghist(data, bins=50, range=None):
     hist, bins = np.histogram(data, bins)
     return hist, bins
 
+def count(data, thresh):
+    return np.logical_and(data[:-1]<thresh, data[1:]>=thresh).sum()
+
 from collections import namedtuple
-Event = namedtuple("Event", "start, data, all_data, len")
+Event = namedtuple("Event", "start, data")
+Event.duration = property(lambda e: e.data.size )
 Event.energy = property(lambda e: (e.data**2).sum() )
 Event.max = property(lambda e: e.data.max() )
 Event.rise_time = property(lambda e: np.argmax(e.data) )
-Event.count = lambda e, thresh: np.logical_and(e.data[:-1]<thresh, e.data[1:]>=thresh).sum() + 1 # one for first event :)
+
+Event.count = lambda e, thresh: count(e.data, thresh)
 
 class Events(list):
+
+    def __init__(self, source, thresh, pre, post):
+        self.source = source
+        self.thresh = thresh
+        self.pre = pre
+        self.post = post
+
     def __repr__(self):
         return "Events(<{} events>)".format(len(self))
 
-    def _make_property(name):
-        return property(lambda self: np.array([getattr(e,name) for e in self]))
-
-    durations = _make_property("len") 
-    energies = _make_property("energy") 
-    maxima = _make_property("max") 
-    rise_times = _make_property("rise_time")
+    durations = property(lambda self: np.array([e.duration for e in self]))
+    energies = property(lambda self: np.array([e.energy for e in self]))
+    maxima = property(lambda self: np.array([e.max for e in self]))
+    rise_times = property(lambda self: np.array([e.rise_time for e in self]))
 
     counts = property(lambda self: np.array([ e.count(self.thresh) for e in self]))
 
-    del _make_property
-
-    def add_event(self, start, a, b, prev_data, data, scale):
-        margin = self.margin
+    def add_event(self, start, a, b, prev_data, data):
+        pre = self.pre
+        post = self.post
         assert a<b # sanity
 
-        if a-margin < 0:
-            assert a-margin > -prev_data.size
-            if b+margin <0:
+        if a-pre < 0:
+            assert a-pre >= -prev_data.size
+            if b+post <0:
                 # whole event in prev_data, we waited only for dead time 
-                ev_data = prev_data[a-margin:b+margin]*scale
+                ev_data = prev_data[a-pre:b+post]*self.source.datascale
             else:
                 # part in prev_data part in data
-                assert b+margin < data.size
+                assert b+post <= data.size
                 ev_data = np.concatenate((
-                    prev_data[a-margin:],
-                    data.flat[:b+margin]
-                ))*scale
+                    prev_data[a-pre:],
+                    data.flat[:b+post]
+                ))*self.source.datascale
         else:
-            if b+margin < data.size:
+            if b+post < data.size:
                 # all in data
-                ev_data = data.flat[a-margin:b+margin]*scale
+                ev_data = data.flat[a-pre:b+post]*self.source.datascale
             else:
                 # pad with zeros
-                assert a-margin < data.size
+                assert a-pre <= data.size
                 ev_data = np.concatenate((
-                    data.flat[a-margin:],
-                    np.zeros(b+margin-data.size, dtype=self.dtype)
-                ))*scale
+                    data.flat[a-pre:],
+                    np.zeros(b+post-data.size, dtype=self.dtype)
+                ))*self.source.datascale
         
-        assert ev_data.size == margin + b-a + margin
-        self.append( Event(start, ev_data[margin:-margin], ev_data, b-a) )
+        assert ev_data.size == pre + b-a + post
+        self.append( Event(start, ev_data) )
 
 
 class Data:
@@ -199,28 +207,26 @@ class Data:
         
         return line
 
-    def get_events(self, thresh, hdt=0.001, dead=0.001, channel=0, margin=50):
+    def get_events(self, thresh, hdt=0.001, dead=0.001, pretrig=0.001, channel=0):
         raw_thresh = int(thresh/self.datascale)
         raw_hdt = int(hdt/self.timescale) 
+        raw_pre = int(pretrig/self.timescale)
         raw_dead = int(dead/self.timescale)
 
         last = None
-        events = Events()
-        events.margin = margin
-        events.thresh = thresh
-        events.hdt = hdt
 
-        prev_data = np.zeros(raw_hdt+raw_dead+margin, dtype=self.dtype)
+        events = Events(source=self, thresh=thresh, pre=raw_pre, post=raw_hdt)
+
+        prev_data = np.zeros(raw_hdt+raw_dead+raw_pre, dtype=self.dtype)
         from .event_detector import process_block
         for pos, data in self.iter_blocks(channel=channel):
             ev, last = process_block(data, raw_thresh, hdt=raw_hdt, dead=raw_dead, event=last, pos=pos)
             for start,end in ev:
-                events.add_event(start, start-pos, end-pos, prev_data, data, self.datascale)
-            
-            prev_data = data.flat[-raw_hdt-raw_dead-margin:]
-
+                events.add_event(start, start-pos, end-pos, prev_data, data)
+            prev_data = data.flat[-(raw_hdt+raw_dead+raw_pre):]
         if last:
-            events.add_event(start, start-pos, end-pos, None, data, self.datascale)
+            start, end = last
+            events.add_event(start, start-pos, end-pos, None, data)
 
         return events
 
