@@ -1,14 +1,17 @@
 #!/usr/bin/python 
 
-def xpan():
+def xpan(ax=None):
     """
     Activates matplotlib pan/zoom tool, constrained to x direction for current axes.
     """
     def drag_pan(self, button, key, x,y):
         return self.__class__.drag_pan(self, button, "x" if key is None else key, x,y)
-    from matplotlib.pyplot import gca
+
+    if ax is None:
+        from matplotlib.pyplot import gca
+        ax = gca()
+
     import types 
-    ax = gca()
     ax.drag_pan = types.MethodType(drag_pan, ax)
     ax.figure.canvas.toolbar.pan()
 
@@ -72,17 +75,31 @@ class Events(np.ndarray):
 
     counts = property(lambda self: np.array([ e.count(self.thresh) for e in self]))
     
-    def plot(self):
-        from matplotlib.pyplot import plot, axvspan, axhline
-        axhline(0, c="k")
-        for e in self:
-            plot(np.arange(e.data.size)+e.start-self.pre, e.data, c="b")
-            axvspan(e.start, e.stop,  color="g", alpha=0.4)
-            axvspan(e.stop, e.stop+self.hdt,  color="g", alpha=0.1)
-            axvspan(e.start-self.pre, e.start,  color="g", alpha=0.1)
-            axvspan(e.stop+self.hdt, e.stop+self.hdt+self.dead,  color="r", alpha=0.1)
-        axhline(self.thresh, c="k", ls="--")
+    def plot(self, ax=None):
+        from itertools import izip, repeat
+        if ax is None:
+            from matplotlib.pyplot import gca
+            axiter = repeat( gca() )
+        else:
+            try:
+                axiter = iter(ax)
+            except TypeError:
+                axiter = repeat(ax)
 
+        axes = set()
+        for ax,e in izip(axiter, self):
+            ax.plot(np.arange(e.data.size)+e.start-self.pre, e.data, c="b")
+            ax.axvspan(e.start, e.stop,  color="g", alpha=0.4)
+            ax.axvspan(e.stop, e.stop+self.hdt,  color="g", alpha=0.1)
+            ax.axvspan(e.start-self.pre, e.start,  color="g", alpha=0.1)
+            ax.axvspan(e.stop+self.hdt, e.stop+self.hdt+self.dead,  color="r", alpha=0.1)
+            axes.add(ax)
+
+        for ax in axes:
+            ax.axhline(0, c="k")
+            ax.axhline(self.thresh, c="k", ls="--")
+
+        return axes
 
 class Data:
     def __repr__(self):
@@ -177,9 +194,10 @@ class Data:
         y *= self.datascale
         return x,y
 
-    def plot(self, channel=0, **kwargs):
-        from matplotlib.pyplot import gca
-        ax = gca()
+    def plot(self, channel=0, ax=None, **kwargs):
+        if ax is None:
+            from matplotlib.pyplot import gca
+            ax = gca()
         line, = ax.plot([], [], **kwargs)
 
         def update(ax):
@@ -250,45 +268,128 @@ class Data:
        
         return Events(source=self, thresh=thresh, pre=raw_pre, hdt=raw_hdt, dead=raw_dead, data=events)
 
+from collections import OrderedDict
+class PrettyOrderedDict(OrderedDict):
+    def __str__(d, prefix=""):
+        indent = "    "
+        s = ["OrderedDict("]
+        for k,v in d.items():
+            if isinstance(v, PrettyOrderedDict):
+                s.append(prefix+indent+"({!r}, {}),".format(k, v.__str__(prefix+indent)))
+            else:
+                s.append(prefix+indent+"({!r}, {!r}),".format(k,v))
+        s.append(prefix+")")
+        return "\n".join(s)
+
 class SDCF(Data):
-    def __init__(self, fname, checks=False):
+    def __init__(self, fname, **kwargs):
         import glob
         self.fname = fname 
         self.fnames = sorted(glob.glob(fname.replace("-000000.sdcf", "-*.sdcf")))
-        self.checks = checks
-       
-        with file(fname,"rb") as fh:
-            self.meta = fh.read(124)
+        self.checks = kwargs.get("checks", False)
+    
+        self.parse_meta(fname, unknown_meta=kwargs.get("unknown_meta", False))
+
         self.datascale = 1/32768.
-        self.timescale = 1e-6
-        self.timeunit = "?"
+        self.timescale = 1./self.meta['2']['rate']
+        self.timeunit = "s"
         self.dataunit = "?"
 
         import os
         file_size = sum( os.stat(fname).st_size for fname in self.fnames)
         self.calc_sizes(file_size)
 
+    def parse_meta(self, fname, unknown_meta=False):
+        meta = np.rec.fromfile(fname, dtype=[ ("meta1", self.meta1_dtype), ("meta2", self.meta2_dtype)], shape=())
+
+        self.meta = PrettyOrderedDict()
+        self.meta['1'] = PrettyOrderedDict( zip(meta.meta1.dtype.names, meta.meta1.tolist()) )
+        self.meta['2'] = PrettyOrderedDict( zip(meta.meta2.dtype.names, meta.meta2.tolist()) )
+        
+        assert self.meta['1']['magic'] == 0xfbdffbdf
+        assert self.meta['2']['magic'] == 0xebd7ebd7
+        self.meta['1']['description'] = self.meta['1']['description'].rstrip("\0 ")
+        self.meta['1']['creator'] = tuple(self.meta['1']['creator'])
+        import datetime
+        self.meta['1']['timestamp'] = datetime.datetime.fromtimestamp(self.meta['1']['timestamp']*1e-6)
+        self.meta['2']['gains'] = tuple(self.meta['2']['gains'])
+       
+        if not unknown_meta:
+            del self.meta["1"]["magic"]
+            del self.meta["1"]["unk1"]
+            del self.meta["1"]["unk2"]
+            del self.meta["1"]["checksum"]
+
+            del self.meta["2"]["magic"]
+            del self.meta["2"]["unk1"]
+            del self.meta["2"]["unk2"]
+            del self.meta["2"]["unk3"]
+            del self.meta["2"]["checksum"]
+        else:
+            self.meta["1"]["unk1"] = str(self.meta["1"]["unk1"])
+            self.meta["1"]["unk2"] = str(self.meta["1"]["unk2"])
+            
+            self.meta["2"]["unk1"] = str(self.meta["2"]["unk1"])
+            self.meta["2"]["unk2"] = str(self.meta["2"]["unk2"])
+            self.meta["2"]["unk3"] = str(self.meta["2"]["unk3"])
+
+
+    meta1_dtype = np.dtype([
+             ("magic", "u4"),
+             ("size", "i2"), ("unk1","V10"),
+             #("unk1", "V12"),
+             ("description", "S32"),
+             ("timestamp", "u8"),
+             ("creator", [("name","S4"),("version","u8")]),
+             ("unk2", "V2"),
+             ("checksum", "u4"),
+    ]) 
+
+    meta2_dtype = np.dtype([
+             ("magic", "u4"),
+             ("size", "i2"), ("unk1","V8"),
+             #("unk1", "V10"),
+             ("rate", "u4"),
+             ("unk2", "V6"),
+             ("gains", "f4", (5,)),
+             ("unk3", "V2"),
+             ("checksum", "u4"),
+    ])
+
+    data_dtype = np.dtype([
+             ("magic", "u4"),
+             ("size1", "i4"),
+             ("one", "i4"),
+             ("offset", "i4"),
+             ("zero", "i4"),
+             ("size2", "i4"),
+             #arbitrary split for caching min,max values, when plotting
+             #("data", ">i2", (16380,4)), 
+             ("data", ">i2", (15,1092,4)), 
+             ("checksum", "u4"),
+    ])
+
     block_dtype = np.dtype([
-                ("magic", "S4"),
-                ("unknown", "V120"),
-                ("data", [
-                    ("magic", "S4"),
-                    ("size1", "i4"),
-                    ("one", "i4"),
-                    ("offset", "i4"),
-                    ("zero", "i4"),
-                    ("size2", "i4"),
-                    #("data", ">i2", (16380,4)), 
-                    #arbitrary split for caching min,max values, when plotting
-                    ("data", ">i2", (15,1092,4)), 
-                    ("checksum", "i4"),
-                    ], (129,))
-                ])
+             ("meta1", meta1_dtype ),
+             ("meta2", meta2_dtype ),
+             ("data", data_dtype, (129,) ),
+    ])
     get_block_data = staticmethod(lambda d: d['data']['data'])
 
     def check_block(self, pos, raw):
         if self.checks:
+            assert np.alltrue(raw['meta1']['magic'] == 0xfbdffbdf)
+            assert np.alltrue(raw['meta2']['magic'] == 0xebd7ebd7)
+            assert np.alltrue(raw['data']['magic'] == 0xe5a7e5a7)
+            assert np.alltrue(raw['data']['size1'] == 131060)
+            assert np.alltrue(raw['data']['size2'] == 131040)
+            assert np.alltrue(raw['data']['one'] == 1)
+            assert np.alltrue(raw['data']['zero'] == 0)
             assert pos == raw['data']['offset'][0,0]
+
+            offsets = np.arange(raw['data'].size)
+            offsets.shape = raw['data'].shape
+            assert np.alltrue( raw['data']['offset'] == offsets*16380 + pos)
 
     def raw_iter_blocks(self, start=0, stop=float('inf')):
         import io, os
@@ -329,14 +430,14 @@ class SDCF(Data):
 
 class WFS(Data):
 
-    def __init__(self, fname, checks=False, unknown_meta=False):
+    def __init__(self, fname, **kwargs):
         self.fname = fname 
-        self.checks = checks
+        self.checks = kwargs.get("checks", False)
 
         import os
         with file(self.fname, "rb") as fh:
             file_size = os.fstat(fh.fileno()).st_size
-            self._offset = self.parse_meta(fh.read(1024), unknown_meta=unknown_meta)
+            self._offset = self.parse_meta(fh.read(1024), unknown_meta=kwargs.get("unknown_meta", False))
         self.calc_sizes(file_size-self._offset)
 
         self.datascale = self.meta['hwsetup']['max.volt']/32768.
@@ -346,8 +447,7 @@ class WFS(Data):
 
     def parse_meta(self, data, unknown_meta=False):
         from struct import unpack_from,  calcsize
-        from collections import OrderedDict
-        self.meta = OrderedDict()
+        self.meta = PrettyOrderedDict()
         offset = 0
         while offset < len(data):
             size, id1, id2 = unpack_from("<HBB", data, offset)
@@ -376,9 +476,11 @@ class WFS(Data):
                     ]
                     sfmt = "<"+"".join(code for name,code in fmt)
                     assert calcsize(sfmt) == size
-                    self.meta['hwsetup'] = OrderedDict(zip(
+                    self.meta['hwsetup'] = PrettyOrderedDict(zip(
                         [name for name, code in fmt], 
                         unpack_from(sfmt, data, offset)))
+                    if self.meta['hwsetup']['AD'] == 2:
+                        self.meta['hwsetup']['AD'] = "16-bit signed"
                 elif unknown_meta:
                     self.meta[(id1,id2)] = data[offset:offset+size]
             else: 
@@ -388,7 +490,7 @@ class WFS(Data):
                 if id1 == 99:
                     self.meta['date'] = data[offset:offset+size].rstrip("\0\n")
                 elif id1 == 41:
-                    self.meta['product'] = OrderedDict([
+                    self.meta['product'] = PrettyOrderedDict([
                         ("ver", unpack_from("<xH", data, offset)[0]), 
                         ("text", data[offset+3:offset+size].rstrip("\r\n\0\x1a"))])
                 elif unknown_meta:
@@ -401,7 +503,7 @@ class WFS(Data):
             ("size", "u2"), 
             ("id1", "u1"),
             ("id2", "u1"),
-            ("unknown", "V26"), 
+            ("unknown", "S26"), 
             ("data", "i2", (1024,1))])
     get_block_data = staticmethod(lambda d: d['data'])
  
@@ -434,7 +536,7 @@ class WFS(Data):
         if remains:
             yield pos, buffer[:remains]
 
-def open(fname, checks=False):
+def open(fname, **kwargs):
     """
     Opens file using appropriate :class:`Data` subclass. Currently 
     supports .wfs format. 
@@ -442,14 +544,14 @@ def open(fname, checks=False):
     :param str fname: Name of file to open
     :return: :class:`.ae.Data` subclass instance
     """
-
+    
     import os.path
     _, ext = os.path.splitext(fname)
     ext = ext.lower()
     if ext == ".wfs":
-        return WFS(fname, checks=checks)
+        return WFS(fname, **kwargs)
     elif ext == ".sdcf":
-        return SDCF(fname, checks=checks)
+        return SDCF(fname, **kwargs)
     else:
         raise NotImplementedError("Unknown format {}".format(ext))
 
@@ -479,9 +581,9 @@ if __name__ == "__main__":
 
         figure(figsize=(8,4))
         subplots_adjust(0.10,0.10,0.98,0.95)
-        for ch in range(x.channels)[::-1]:
+        for ch in range(x.channels):
             x.plot(channel=ch, label="ch#{}".format(ch))
-        xpan()
+        #xpan()
         legend()
         grid()
     show()
