@@ -21,10 +21,7 @@ if __name__ == "__main__":
     for i,l in enumerate("durations energies maxima rise_times counts".split()):
         subplot(2,3,i+1)
         title(l.replace("_"," "))
-        hist, bins = ae.loghist(getattr(events,l))
-        plot( (bins[1:]+bins[:-1])/2, hist, "o")
-        loglog()
-        grid(True)
+        ae.hist( getattr(events,l) )
     tight_layout()
     
     figure()

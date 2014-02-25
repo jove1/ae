@@ -37,6 +37,13 @@ def loghist(data, bins=50, range=None):
     hist, bins = np.histogram(data, bins)
     return hist, bins
 
+def hist(data, bins=50, range=None):
+    from pylab import plot, loglog, grid
+    hist, bins = loghist(data, bins=bins, range=range)
+    plot( (bins[1:]+bins[:-1])/2, hist, "o")
+    loglog()
+    grid(True)
+
 def count(data, thresh):
     return np.logical_and(data[:-1]<thresh, data[1:]>=thresh).sum()
 
