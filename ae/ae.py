@@ -122,7 +122,7 @@ class Data:
 
     def calc_sizes(self, file_size):
         n_blocks = file_size // self.block_dtype.itemsize
-        print "rest", file_size % self.block_dtype.itemsize
+        #print "rest", file_size % self.block_dtype.itemsize
 
         tmp = self.get_block_data( np.empty(0, self.block_dtype) )
         self.dtype = tmp.dtype
@@ -425,8 +425,12 @@ class SDCF(Data):
                             return
 
         remains = offset // buffer.itemsize
+        rest = read % buffer.itemsize
         if remains:
             yield pos, buffer[:remains]
+        if rest:
+            import warnings
+            warnings.warn("{} bytes left in the buffer".format(rest))
 
 class WFS(Data):
 
@@ -533,8 +537,11 @@ class WFS(Data):
                         return 
 
         remains = read // buffer.itemsize
+        rest = read % buffer.itemsize
         if remains:
             yield pos, buffer[:remains]
+        assert rest == 9
+        assert np.alltrue(buffer.view('B')[read-rest:read] == (7, 0, 15, 255, 255, 255, 255, 255, 127))
 
 def open(fname, **kwargs):
     """
