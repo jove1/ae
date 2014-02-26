@@ -78,10 +78,10 @@ class Events(np.ndarray):
         self.hdt = getattr(obj, 'hdt', None)
         self.dead = getattr(obj, 'dead', None)
 
-    durations = property(lambda self: np.array([e.duration for e in self]))
+    durations = property(lambda self: np.array([e.duration for e in self])*self.source.timescale)
     energies = property(lambda self: np.array([e.energy for e in self]))
     maxima = property(lambda self: np.array([e.max for e in self]))
-    rise_times = property(lambda self: np.array([e.rise_time for e in self]))
+    rise_times = property(lambda self: np.array([e.rise_time for e in self])*self.source.timescale)
 
     counts = property(lambda self: np.array([ e.count(self.thresh) for e in self]))
     
@@ -95,14 +95,14 @@ class Events(np.ndarray):
                 axiter = iter(ax)
             except TypeError:
                 axiter = repeat(ax)
-
+        s = self.source.timescale
         axes = set()
         for ax,e in izip(axiter, self):
-            ax.plot(np.arange(e.data.size)+e.start-self.pre, e.data, c="b")
-            ax.axvspan(e.start, e.stop,  color="g", alpha=0.4)
-            ax.axvspan(e.stop, e.stop+self.hdt,  color="g", alpha=0.1)
-            ax.axvspan(e.start-self.pre, e.start,  color="g", alpha=0.1)
-            ax.axvspan(e.stop+self.hdt, e.stop+self.hdt+self.dead,  color="r", alpha=0.1)
+            ax.plot(s*(np.arange(e.data.size)+e.start-self.pre), e.data, c="b")
+            ax.axvspan(s*(e.start-self.pre), s*e.start,  color="g", alpha=0.1)
+            ax.axvspan(s*e.start, s*e.stop,  color="g", alpha=0.4)
+            ax.axvspan(s*e.stop, s*(e.stop+self.hdt),  color="g", alpha=0.1)
+            ax.axvspan(s*(e.stop+self.hdt), s*(e.stop+self.hdt+self.dead),  color="r", alpha=0.1)
             axes.add(ax)
 
         for ax in axes:
