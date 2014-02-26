@@ -37,12 +37,16 @@ def loghist(data, bins=50, range=None):
     hist, bins = np.histogram(data, bins)
     return hist, bins
 
-def hist(data, bins=50, range=None):
-    from pylab import plot, loglog, grid
+def hist(data, bins=50, range=None, ax=None):
+    if ax is None:
+        from matplotlib.pyplot import gca
+        ax = gca()
+
     hist, bins = loghist(data, bins=bins, range=range)
-    plot( (bins[1:]+bins[:-1])/2, hist, "o")
-    loglog()
-    grid(True)
+    l, = ax.plot( (bins[1:]+bins[:-1])/2, hist, "o")
+    ax.loglog()
+    ax.grid(True)
+    return hist, bins, l
 
 def count(data, thresh):
     return np.logical_and(data[:-1]<thresh, data[1:]>=thresh).sum()
@@ -54,7 +58,6 @@ Event.energy = property(lambda e: (e.data**2).sum() )
 Event.max = property(lambda e: e.data.max() )
 Event.rise_time = property(lambda e: np.argmax(e.data) )
 Event.count = lambda e, thresh: count(e.data, thresh)
-
 
 class Events(np.ndarray):
     def __new__(cls, source, thresh, pre, hdt, dead, data):
@@ -108,24 +111,34 @@ class Events(np.ndarray):
 
         return axes
 
+def text_progress(percent, time):
+    import sys
+    if percent < 100:
+        sys.stderr.write("\r{:.0f}%".format(percent))
+        sys.stderr.flush()
+    else:
+        sys.stderr.write("\r{:.0f}% {:.2f}s\n".format(percent, time))
+
+def no_progress(percent, time):
+    pass
+
 class Data:
     def __repr__(self):
         return "{}({!r})".format(self.__class__.__name__, self.fname)
-
-    progress = True
+    
+    progress = staticmethod(text_progress)
     def iter_blocks(self, start=0, stop=float('inf'), channel=slice(None), progress=None):
         if progress is None:
             progress = self.progress
+
         import sys, time
         start_time = time.time()
         for pos, raw in self.raw_iter_blocks(start, stop):
             self.check_block(pos, raw)
             yield pos, self.get_block_data(raw)[..., channel]
-            if progress:
-                sys.stderr.write("\r{:.0f}%".format(100.*pos/self.size))
-                sys.stderr.flush()
-        if progress:
-            sys.stderr.write("\r{:.0f}% {:.2f}s\n".format(100., time.time()-start_time))
+            progress(100.*pos/self.size, time.time()-start_time)
+        
+        progress(100, time.time()-start_time)
 
     def calc_sizes(self, file_size):
         n_blocks = file_size // self.block_dtype.itemsize
@@ -184,7 +197,7 @@ class Data:
             b *= r
         else:
             blocks = []
-            for pos, d in self.iter_blocks(start=a//s*s, stop=b//s*s, channel=channel, progress=False):
+            for pos, d in self.iter_blocks(start=a//s*s, stop=b//s*s, channel=channel, progress=no_progress):
                 aa = np.clip(a//s*s-pos, 0, d.size)
                 bb = np.clip(b//s*s-pos, 0, d.size)
                 blocks.append(d.flat[aa:bb])
@@ -432,7 +445,7 @@ class SDCF(Data):
                             return
 
         remains = offset // buffer.itemsize
-        rest = read % buffer.itemsize
+        rest = offset % buffer.itemsize
         if remains:
             yield pos, buffer[:remains]
         if rest:
@@ -547,8 +560,11 @@ class WFS(Data):
         rest = read % buffer.itemsize
         if remains:
             yield pos, buffer[:remains]
-        assert rest == 9
-        assert np.alltrue(buffer.view('B')[read-rest:read] == (7, 0, 15, 255, 255, 255, 255, 255, 127))
+        if rest:
+            import warnings
+            warnings.warn("{} bytes left in the buffer".format(rest))
+            assert rest == 9
+            assert np.alltrue(buffer.view('B')[read-rest:read] == (7, 0, 15, 255, 255, 255, 255, 255, 127))
 
 def open(fname, **kwargs):
     """

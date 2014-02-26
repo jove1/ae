@@ -15,7 +15,6 @@ import tkSimpleDialog
 
 import ae
 
-
 class GetEventsDialog(tkSimpleDialog.Dialog):
     
     def body(self, master):
@@ -73,11 +72,14 @@ class Histogram:
 
 
         menubar = Tk.Menu(self.win)
-        menubar.add_command(label="Save", command=self.save)
+        menubar.add_command(label="Save Data", command=self.save)
         self.win.config(menu=menubar)
 
         ax = self.fig.gca()
+        ax.set_title(name.title())
         self.hist, self.bins, _ = ae.hist(data, ax=ax)
+
+        self.win.update()
 
     def save(self):
         from numpy import savetxt, transpose
@@ -166,10 +168,11 @@ class AEViewer:
         if d.result is None:
             return
         events = self.data.get_events(*d.result)
-        tkMessageBox.showinfo("Events", "Found {} events.\nPlease wait for histograms.".format(events.size))
 
         for l in "durations energies maxima rise_times counts".split():
-            Histogram(self.root, l.replace("_"," "), getattr(events,l) )
+            h = Histogram(self.root, l.replace("_"," "), getattr(events,l) )
+        
+        tkMessageBox.showinfo("Events", "Found {} events.".format(events.size))
 
 if __name__ == "__main__":
     import sys
