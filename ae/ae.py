@@ -15,6 +15,25 @@ def xpan(ax=None):
     ax.drag_pan = types.MethodType(drag_pan, ax)
     ax.figure.canvas.toolbar.pan()
 
+from matplotlib.ticker import ScalarFormatter
+class TimeFormatter(ScalarFormatter):
+    def format_data(self, value):
+        'return a formatted string representation of a number'
+        if self._useLocale:
+            s = locale.format_string(self.format, (value,))
+        else:
+            s = self.format % value
+        s = self._formatSciNotation(s)
+        return self.fix_minus(s)
+
+    def format_data_short(self,value):
+        more = 1
+        s = '%1.*f' % (int(self.format[3:-1])+more, value)
+        #return s[:-more] + " " + s[-more:]
+        return s
+        
+
+
 import numpy as np
 
 def loghist(data, bins=50, range=None):
@@ -106,6 +125,7 @@ class Events(np.ndarray):
             axes.add(ax)
 
         for ax in axes:
+            ax.xaxis.set_major_formatter(TimeFormatter())
             ax.axhline(0, c="k")
             ax.axhline(self.thresh, c="k", ls="--")
 
@@ -229,7 +249,8 @@ class Data:
         ax.set_xlim(0,(self.size-1)*self.timescale)
         ax.relim()
         ax.autoscale_view(scalex=False)
-        
+        ax.xaxis.set_major_formatter(TimeFormatter())
+
         return line
 
 
