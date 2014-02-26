@@ -15,7 +15,7 @@ process_block(PyObject* self, PyObject *args, PyObject *kwds)
     if (! PyArg_ParseTupleAndKeywords(args, kwds, "Oi|iiiOO", kwlist, &data, &threshold, &hdt, &dead, &pos, &event_arg, &list))
         return NULL;
     
-    if (!PyArray_Check(data) || PyArray_TYPE(data) != PyArray_SHORT) {
+    if (!PyArray_Check(data) || PyArray_TYPE((PyArrayObject *)data) != NPY_SHORT) {
         PyErr_SetString(PyExc_TypeError, "data must be array with 'i2' dtype");
         return NULL;
     }
