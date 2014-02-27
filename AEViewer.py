@@ -15,50 +15,37 @@ import tkSimpleDialog
 
 import ae
 
-class GetEventsDialog(tkSimpleDialog.Dialog):
+
+class Dialog(tkSimpleDialog.Dialog):
+    def __init__(self, master, title, fields):
+        self.fields = fields
+        tkSimpleDialog.Dialog.__init__(self, master, title)
     
     def body(self, master):
-        Tk.Label(master, text="Threshold:").grid(row=0)
-        Tk.Label(master, text="HDT:").grid(row=1)
-        Tk.Label(master, text="Dead time:").grid(row=2)
-        Tk.Label(master, text="Pre-trigger:").grid(row=3)
-        Tk.Label(master, text="Channel:").grid(row=4)
+        self.entries = []
+        for i,(label,value) in enumerate(self.fields):
+            l = Tk.Label(master, text=label)
+            l.grid(row=i, column=0)
 
-        self.thresh = Tk.Entry(master)
-        self.hdt = Tk.Entry(master)
-        self.dead = Tk.Entry(master)
-        self.pre = Tk.Entry(master)
-        self.channel = Tk.Entry(master)
-
-        def _set(e, v):
+            e = Tk.Entry(master)
+            e.grid(row=i, column=1)
             e.delete(0, Tk.END)
-            e.insert(0, v)
-        _set(self.hdt, "0.001")
-        _set(self.dead, "0.001")
-        _set(self.pre, "0.001")
-        _set(self.channel, "0")
-
-        self.thresh.grid(row=0, column=1)
-        self.hdt.grid(row=1, column=1)
-        self.dead.grid(row=2, column=1)
-        self.pre.grid(row=3, column=1)
-        self.channel.grid(row=4, column=1)
-
-        return self.thresh
+            e.insert(0, str(value))
+            self.entries.append(e)
+        return self.entries[0]
 
     def validate(self):
-        try:
-            thresh = float(self.thresh.get())
-            hdt = float(self.hdt.get())
-            dead = float(self.dead.get())
-            pre = float(self.pre.get())
-            channel = int(self.channel.get())
-        except ValueError:
-            tkMessageBox.showwarning("Bad input", "Illegal values, please try again")
-            return 0
-        else:
-            self.result = thresh, hdt, dead, pre, channel
-            return 1
+        values = []
+        for e,(_, value) in zip(self.entries, self.fields):
+            try:
+                v = type(value)(e.get())
+            except ValueError,e:
+                tkMessageBox.showwarning("Bad input", e.message)
+                return 0
+            else:
+                values.append(v)
+        self.result = values
+        return 1
 
 class Histogram:
     def __init__(self, root, name, data):
@@ -164,7 +151,20 @@ class AEViewer:
     def events(self):
         if self.data is None:
             return
-        d = GetEventsDialog(self.root)
+        
+        _, samples = self.data.iter_blocks(stop=1000).next()
+        thresh = samples.std()*self.data.datascale*5
+        from math import log10
+        thresh = round(thresh,int(-log10(thresh)+2))
+        
+        d = Dialog(self.root, "Get Events", [
+            ("Threshold:", thresh),
+            ("HDT:", 0.001),
+            ("Dead time:", 0.001),
+            ("Pre-trigger:", 0.001),
+            ("Channel:", 0)
+            ])
+
         if d.result is None:
             return
         events = self.data.get_events(*d.result)
