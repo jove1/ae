@@ -5,6 +5,7 @@ import matplotlib
 matplotlib.use('TkAgg')
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
+from matplotlib.backend_bases import key_press_handler
 from matplotlib.figure import Figure
 
 import Tkinter as Tk
@@ -14,7 +15,6 @@ import tkFileDialog
 import tkSimpleDialog
 
 import ae
-
 
 class Dialog(tkSimpleDialog.Dialog):
     def __init__(self, master, title, fields):
@@ -87,16 +87,48 @@ class AEViewer:
         self.fig = Figure(figsize=(8,6), dpi=100)
         canvas = FigureCanvasTkAgg(self.fig, frame)
         canvas.get_tk_widget().pack(side=Tk.TOP, fill=Tk.BOTH, expand=1)
-        toolbar = NavigationToolbar2TkAgg(canvas, frame)
+        self.toolbar = NavigationToolbar2TkAgg(canvas, frame)
+
+        canvas.mpl_connect('key_press_event', self.on_key_press)
+        canvas.mpl_connect('scroll_event', self.on_scroll)
         
         self.progressbar = ttk.Progressbar(self.root, orient='horizontal', mode='determinate', )
         self.progressbar.pack(side=Tk.BOTTOM, fill=Tk.X)
         
         self.data = None
 
+    def on_scroll(self, event):
+        ax = event.inaxes
+        if ax is None:
+            return
+    
+        if event.key == 'shift':
+            dir = {'up': -0.2, 'down': 0.2}[event.button]
+            a,b = ax.viewLim.intervalx
+            ax.set_xlim([a+dir*(b-a),
+                         b+dir*(b-a)])
+        else:
+            scale = {'up': 0.8, 'down': 1.25}[event.button]
+            x = event.xdata
+            a,b = ax.viewLim.intervalx
+            ax.set_xlim([x+scale*(a-x),
+                         x+scale*(b-x)])
+        ax.figure.canvas.draw()
+
+    def on_key_press(self, event):
+        if event.key == 'a' and event.inaxes:
+            ax = event.inaxes
+            ax.relim()
+            l = 1.1*max(abs(ax.dataLim.y0), abs(ax.dataLim.y1))
+            ax.set_ylim(-l,l)
+            ax.figure.canvas.draw()
+        else:
+            key_press_handler(event, event.canvas, self.toolbar)
+
     def progress(self, percent, time):
         self.progressbar["value"] = percent
         self.progressbar.update()
+
     def make_menu(self):
         menubar = Tk.Menu(self.root)
 
