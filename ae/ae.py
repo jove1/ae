@@ -98,7 +98,7 @@ class Events(np.ndarray):
         self.dead = getattr(obj, 'dead', None)
 
     durations = property(lambda self: np.array([e.duration for e in self])*self.source.timescale)
-    energies = property(lambda self: np.array([e.energy for e in self]))
+    energies = property(lambda self: np.array([e.energy for e in self])*self.source.timescale)
     maxima = property(lambda self: np.array([e.max for e in self]))
     rise_times = property(lambda self: np.array([e.rise_time for e in self])*self.source.timescale)
 
