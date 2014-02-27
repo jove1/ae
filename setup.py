@@ -3,7 +3,7 @@
 from numpy.distutils.core import setup, Extension
 
 setup(name='ae',
-      version='0.1',
+      version='0.2',
       description='Python accoustic emission tools',
       author='Jozef Vesely',
       author_email='vesely@gjh.sk',
