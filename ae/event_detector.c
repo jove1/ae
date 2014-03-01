@@ -105,12 +105,25 @@ static PyMethodDef event_detector_methods[] = {
     {NULL}  /* Sentinel */
 };
 
+#if PY_VERSION_HEX >= 0x03000000
+static struct PyModuleDef event_detector = {
+    "event_detector",
+    NULL,
+    -1,
+    event_detector_methods
+};
+#endif
+
 #ifndef PyMODINIT_FUNC	/* declarations for DLL import/export */
 #define PyMODINIT_FUNC void
 #endif
 PyMODINIT_FUNC 
 initevent_detector(void)
 {
+#if PY_VERSION_HEX >= 0x03000000
+    PyModule_Create(&event_detector);
+#else
     Py_InitModule("event_detector", event_detector_methods);
+#endif
     import_array();
 }
