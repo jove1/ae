@@ -25,7 +25,7 @@ Features
 ![Graph](doc/view.png)
 ```python
 >>> events = f.get_events(0.02)
->>> print len(events)
+>>> print events.size
 6161
 >>> ae.hist(event.maxima)
 ```
