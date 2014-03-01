@@ -32,6 +32,3 @@ Features
 ```
 ![Graph](doc/hist.png)
 
-
-[Documentation](http://jove1.github.io/ae/)
--------------------------------------------
