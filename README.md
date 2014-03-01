@@ -25,10 +25,9 @@ Features
 ![Graph](doc/view.png)
 ```python
 >>> events = f.get_events(0.02)
->>> print len(events)
+>>> print events.size
 6161
->>> hist, bins = ae.loghist(event.maxima)
->>> plot( (bins[1:]+bins[:-1])/2, hist, "o")
+>>> ae.hist(event.maxima)
 ```
 ![Graph](doc/hist.png)
 
