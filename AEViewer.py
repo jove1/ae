@@ -138,7 +138,6 @@ class AEViewer:
         filemenu.add_command(label="Quit", command=self.quit)
         menubar.add_cascade(label="File", menu=filemenu)
 
-
         menubar.add_command(label="Events", command=self.events)
 
         helpmenu = Tk.Menu(menubar, tearoff=0)
@@ -190,10 +189,10 @@ class AEViewer:
         thresh = round(thresh,int(-log10(thresh)+2))
         
         d = Dialog(self.root, "Get Events", [
-            ("Threshold:", thresh),
-            ("HDT:", 0.001),
-            ("Dead time:", 0.001),
-            ("Pre-trigger:", 0.001),
+            ("Threshold [{}]:".format(self.data.dataunit), thresh),
+            ("HDT [{}]:".format(self.data.timeunit), 0.001),
+            ("Dead time [{}]:".format(self.data.timeunit), 0.001),
+            ("Pre-trigger [{}]:".format(self.data.timeunit), 0.001),
             ("Channel:", 0)
             ])
 
