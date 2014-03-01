@@ -1,20 +1,15 @@
-ae
-==
+#ae
 
 Python acoustic emission tools.
 
-Features
---------
-
+##Features
 * read *.wfs files
 * read *.sdcf files
 * event extractor
 * interactive decimated waveform plotting
 * optimized for files bigger than RAM
 
-[Example](http://nbviewer.ipython.org/github/jove1/ae/blob/master/doc/example.ipynb)
-------------------------------------------------------------------------------------
-
+##[Example](http://nbviewer.ipython.org/github/jove1/ae/blob/master/doc/example.ipynb)
 ```python
 >>> import ae
 >>> f = ae.open("M5.wfs")
@@ -30,4 +25,19 @@ Features
 >>> ae.hist(event.maxima)
 ```
 ![Graph](doc/hist.png)
+
+##Install
+###Dependencies: 
+* [python](http://python.org)
+* [numpy](http://scipy.org)
+* [matplotlib](http://matplotlib.org)
+
+###Linux:
+```
+git clone https://github.com/jove1/ae.git
+python setup.py install
+```
+
+###Windows:
+Get windows installers of [python](http://python.org/downloads/windows/), [scipy-stack](http://www.lfd.uci.edu/~gohlke/pythonlibs/#scipy-stack) and [ae](https://pypi.python.org/pypi/ae/0.2) itself.
 
