@@ -72,8 +72,8 @@ class Histogram:
         from numpy import savetxt, transpose
         fname = tkFileDialog.asksaveasfilename(parent=self.win, 
                     filetypes=[('Data file', '.txt .dat')])
-
-        savetxt(fname, transpose([self.bins[:-1], self.bins[1:], self.hist]))
+        if fname:
+            savetxt(fname, transpose([self.bins[:-1], self.bins[1:], self.hist]))
 
 class AEViewer:
     def __init__(self):
@@ -96,6 +96,7 @@ class AEViewer:
         self.progressbar.pack(side=Tk.BOTTOM, fill=Tk.X)
         
         self.data = None
+        self.root.update() # needed on windows for events to work
 
     def on_scroll(self, event):
         ax = event.inaxes
@@ -116,7 +117,7 @@ class AEViewer:
         ax.figure.canvas.draw()
 
     def on_key_press(self, event):
-        if event.key == 'a' and event.inaxes:
+        if event.key == 'a' or event.key == "alt+a" and event.inaxes:
             ax = event.inaxes
             ax.relim()
             l = 1.1*max(abs(ax.dataLim.y0), abs(ax.dataLim.y1))
