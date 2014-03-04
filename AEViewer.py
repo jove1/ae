@@ -47,30 +47,30 @@ class Dialog(tkSimpleDialog.Dialog):
         self.result = values
         return 1
 
-class Histogram:
-    def __init__(self, root, name, data):
-        self.win = tk.Toplevel(root)
-        self.win.wm_title("Histogram: {}".format(name))
+class Histogram(tk.Toplevel):
+    def __init__(self, master, name, data):
+        tk.Toplevel.__init__(self, master)
+        self.wm_title("Histogram: {}".format(name))
 
         self.fig = Figure(figsize=(4,3), dpi=100)
-        canvas = FigureCanvasTkAgg(self.fig, self.win)
-        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-        toolbar = NavigationToolbar2TkAgg(canvas, self.win)
+        canvas = FigureCanvasTkAgg(self.fig, self)
+        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=1)
+        toolbar = NavigationToolbar2TkAgg(canvas, self)
 
 
-        menubar = tk.Menu(self.win)
+        menubar = tk.Menu(self)
         menubar.add_command(label="Save Data", command=self.save)
-        self.win.config(menu=menubar)
+        self.config(menu=menubar)
 
         ax = self.fig.gca()
         ax.set_title(name.title())
         self.hist, self.bins, _ = ae.hist(data, ax=ax)
 
-        self.win.update()
+        self.update()
 
     def save(self):
         from numpy import savetxt, transpose
-        fname = tkFileDialog.asksaveasfilename(parent=self.win, 
+        fname = tkFileDialog.asksaveasfilename(parent=self, 
                     filetypes=[('Data file', '.txt .dat')])
         if fname:
             savetxt(fname, transpose([self.bins[:-1], self.bins[1:], self.hist]))
@@ -201,10 +201,6 @@ class AEViewer:
             return
         events = self.data.get_events(*d.result)
 
-        for l in "durations energies maxima rise_times counts".split():
-            h = Histogram(self.root, l.replace("_"," "), getattr(events,l) )
-        
-        tkMessageBox.showinfo("Events", "Found {} events.".format(events.size))
 
 if __name__ == "__main__":
     import sys
@@ -216,4 +212,4 @@ if __name__ == "__main__":
     v = AEViewer()
     v.open(fname)
     
-    tk.mainloop()
+    v.root.mainloop()
