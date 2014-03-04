@@ -47,6 +47,89 @@ class Dialog(tkSimpleDialog.Dialog):
         self.result = values
         return 1
 
+class EventsTable(tk.Toplevel):
+    columns = [
+            ("Start", "starts", 75),
+            ("Duration", "durations", 75),
+            ("Energy", "energies", 150),
+            ("Maximum", "maxima", 150),
+            ("Rise time", "rise_times", 75),
+            ("Count", "counts", 50),
+            ]
+
+    def __init__(self, master, events):
+        tk.Toplevel.__init__(self, master)
+        self.wm_title("Events")
+
+        self.events = events
+
+        self.tree = ttk.Treeview(self, columns=[name for label,name,width in self.columns])
+        ysb = ttk.Scrollbar(self, orient='vertical', command=self.tree.yview)
+
+        self.tree.configure(yscroll=ysb.set)
+        self.tree.heading('#0', text='No.')
+        self.tree.column('#0', width=50)
+
+        for label, name, width in self.columns:
+            self.tree.heading(name, text=label, command=lambda name=name: self.sort(name, True))
+            self.tree.column(name, width=width)
+
+        for i,values in enumerate(zip(*(getattr(events, name) for label,name,width in self.columns))):
+            iid = self.tree.insert('', 'end', iid=str(i), text=str(i), values=values)
+
+        ysb.pack(side=tk.RIGHT, fill=tk.Y)
+        self.tree.pack(fill=tk.BOTH, expand=1)
+
+        self.tree.bind("<Double-1>", self.on_doubleclick)
+        self.tree.bind("<Button-3>", self.on_rightclick)
+
+        tkMessageBox.showinfo("Events", "Found {} events.".format(events.size), parent=self)
+
+
+    def on_rightclick(self, event):
+        region = self.tree.identify_region(event.x, event.y)
+        if region != "heading":
+            return
+        col = self.tree.identify_column(event.x)
+        if col == "#0":
+            return
+        col = int(col.lstrip("#"))
+        label, name, _ = self.columns[col-1]
+
+        menu = tk.Menu(self, tearoff=0)
+        menu.add_command(label="Histogram", command=lambda: Histogram(self, label, getattr(self.events, name)))
+        menu.post(event.x_root, event.y_root)
+
+    def on_doubleclick(self, event):
+        item = self.tree.identify('item',event.x,event.y)
+        if not item:
+            return
+
+        item = int(item)
+
+        win = tk.Toplevel(self)
+        win.wm_title("Event #{}".format(item))
+
+        fig = Figure(figsize=(4,3), dpi=100)
+        canvas = FigureCanvasTkAgg(fig, win)
+        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=1)
+        toolbar = NavigationToolbar2TkAgg(canvas, win)
+        ax = fig.gca()
+        self.events[[item]].plot(ax)
+        ax.set_title("Event #{}".format(item))
+        ax.grid(True)
+        fig.tight_layout()
+        win.update()
+
+    def sort(self, name, reverse):
+        from numpy import argsort
+        order = argsort(getattr(self.events, name))
+        if reverse:
+            order = order[::-1]
+        for i,j in enumerate(order):
+            self.tree.move(str(j),'',i)
+        self.tree.heading(name, command=lambda: self.sort(name, not reverse))
+
 class Histogram(tk.Toplevel):
     def __init__(self, master, name, data):
         tk.Toplevel.__init__(self, master)
@@ -63,7 +146,7 @@ class Histogram(tk.Toplevel):
         self.config(menu=menubar)
 
         ax = self.fig.gca()
-        ax.set_title(name.title())
+        ax.set_title(name)
         self.hist, self.bins, _ = ae.hist(data, ax=ax)
 
         self.update()
@@ -201,6 +284,7 @@ class AEViewer:
             return
         events = self.data.get_events(*d.result)
 
+        EventsTable(self.root, events)
 
 if __name__ == "__main__":
     import sys
