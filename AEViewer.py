@@ -8,7 +8,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 from matplotlib.backend_bases import key_press_handler
 from matplotlib.figure import Figure
 
-import Tkinter as Tk
+import Tkinter as tk
 import ttk
 import tkMessageBox
 import tkFileDialog
@@ -24,12 +24,12 @@ class Dialog(tkSimpleDialog.Dialog):
     def body(self, master):
         self.entries = []
         for i,(label,value) in enumerate(self.fields):
-            l = Tk.Label(master, text=label)
+            l = tk.Label(master, text=label)
             l.grid(row=i, column=0)
 
-            e = Tk.Entry(master)
+            e = tk.Entry(master)
             e.grid(row=i, column=1)
-            e.delete(0, Tk.END)
+            e.delete(0, tk.END)
             e.insert(0, str(value))
             self.entries.append(e)
         return self.entries[0]
@@ -49,16 +49,16 @@ class Dialog(tkSimpleDialog.Dialog):
 
 class Histogram:
     def __init__(self, root, name, data):
-        self.win = Tk.Toplevel(root)
+        self.win = tk.Toplevel(root)
         self.win.wm_title("Histogram: {}".format(name))
 
         self.fig = Figure(figsize=(4,3), dpi=100)
         canvas = FigureCanvasTkAgg(self.fig, self.win)
-        canvas.get_tk_widget().pack(side=Tk.TOP, fill=Tk.BOTH, expand=1)
+        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
         toolbar = NavigationToolbar2TkAgg(canvas, self.win)
 
 
-        menubar = Tk.Menu(self.win)
+        menubar = tk.Menu(self.win)
         menubar.add_command(label="Save Data", command=self.save)
         self.win.config(menu=menubar)
 
@@ -77,23 +77,23 @@ class Histogram:
 
 class AEViewer:
     def __init__(self):
-        self.root = Tk.Tk()
+        self.root = tk.Tk()
         self.root.wm_title("AEViewer")
         self.make_menu()
 
-        frame = Tk.Frame(self.root)
-        frame.pack(side=Tk.TOP, fill=Tk.BOTH, expand=1)
+        frame = tk.Frame(self.root)
+        frame.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
         self.fig = Figure(figsize=(8,6), dpi=100)
         canvas = FigureCanvasTkAgg(self.fig, frame)
-        canvas.get_tk_widget().pack(side=Tk.TOP, fill=Tk.BOTH, expand=1)
+        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
         self.toolbar = NavigationToolbar2TkAgg(canvas, frame)
 
         canvas.mpl_connect('key_press_event', self.on_key_press)
         canvas.mpl_connect('scroll_event', self.on_scroll)
         
         self.progressbar = ttk.Progressbar(self.root, orient='horizontal', mode='determinate', )
-        self.progressbar.pack(side=Tk.BOTTOM, fill=Tk.X)
+        self.progressbar.pack(side=tk.BOTTOM, fill=tk.X)
         
         self.data = None
         self.root.update() # needed on windows for events to work
@@ -131,9 +131,9 @@ class AEViewer:
         self.progressbar.update()
 
     def make_menu(self):
-        menubar = Tk.Menu(self.root)
+        menubar = tk.Menu(self.root)
 
-        filemenu = Tk.Menu(menubar, tearoff=0)
+        filemenu = tk.Menu(menubar, tearoff=0)
         filemenu.add_command(label="Open", command=self.open)
         filemenu.add_separator()
         filemenu.add_command(label="Quit", command=self.quit)
@@ -141,7 +141,7 @@ class AEViewer:
 
         menubar.add_command(label="Events", command=self.events)
 
-        helpmenu = Tk.Menu(menubar, tearoff=0)
+        helpmenu = tk.Menu(menubar, tearoff=0)
         helpmenu.add_command(label="About", command=self.about)
         menubar.add_cascade(label="Help", menu=helpmenu)
 
@@ -216,4 +216,4 @@ if __name__ == "__main__":
     v = AEViewer()
     v.open(fname)
     
-    Tk.mainloop()
+    tk.mainloop()
