@@ -36,7 +36,7 @@ class TimeFormatter(ScalarFormatter):
 
 import numpy as np
 
-def loghist(data, bins=50, range=None):
+def loghist(data, bins=50, range=None, density=None):
     """
     Creates logarithmically spaced bins and calls :func:`numpy.histogram`.
 
@@ -53,15 +53,15 @@ def loghist(data, bins=50, range=None):
     else:
         a,b = range
     bins = np.exp(np.linspace(np.log(a), np.log(b), bins))
-    hist, bins = np.histogram(data, bins)
+    hist, bins = np.histogram(data, bins, density=density)
     return hist, bins
 
-def hist(data, bins=50, range=None, ax=None):
+def hist(data, bins=50, range=None, ax=None, density=None):
     if ax is None:
         from matplotlib.pyplot import gca
         ax = gca()
 
-    hist, bins = loghist(data, bins=bins, range=range)
+    hist, bins = loghist(data, bins=bins, range=range, density=density)
     l, = ax.plot( (bins[1:]+bins[:-1])/2, hist, "o")
     ax.loglog()
     ax.grid(True)
