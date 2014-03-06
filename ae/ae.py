@@ -342,8 +342,9 @@ class SDCF(Data):
         self.calc_sizes(file_size)
 
     def parse_meta(self, fname, unknown_meta=False):
-        meta = np.rec.fromfile(fname, dtype=[ ("meta1", self.meta1_dtype), ("meta2", self.meta2_dtype)], shape=())
-
+        with file(fname,"rb") as fh: # np.rec.fromfile would not handle unicode filename
+            meta = np.rec.fromfile(fh, dtype=[ ("meta1", self.meta1_dtype), ("meta2", self.meta2_dtype)], shape=())
+        
         self.meta = PrettyOrderedDict()
         self.meta['1'] = PrettyOrderedDict( zip(meta.meta1.dtype.names, meta.meta1.tolist()) )
         self.meta['2'] = PrettyOrderedDict( zip(meta.meta2.dtype.names, meta.meta2.tolist()) )

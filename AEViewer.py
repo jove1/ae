@@ -87,21 +87,21 @@ class EventsTable(tk.Toplevel):
 
 
     def on_rightclick(self, event):
-        region = self.tree.identify_region(event.x, event.y)
-        if region != "heading":
+        row = self.tree.identify_row(event.y)
+        if row: # only clicks on headings (use identify_region in Tk 8.6)
             return
         col = self.tree.identify_column(event.x)
         if col == "#0":
             return
         col = int(col.lstrip("#"))
         label, name, _ = self.columns[col-1]
-
+        
         menu = tk.Menu(self, tearoff=0)
         menu.add_command(label="Histogram", command=lambda: Histogram(self, label, getattr(self.events, name)))
         menu.post(event.x_root, event.y_root)
 
     def on_doubleclick(self, event):
-        item = self.tree.identify('item',event.x,event.y)
+        item = self.tree.identify_row(event.y)
         if not item:
             return
 
@@ -232,11 +232,17 @@ class AEViewer:
 
     def open(self, fname=None):
         if fname is None:
+            filetypes = [('Any AE file', '.wfs .sdcf'),
+                         ('WFS', '.wfs'),
+                         ('SDCF','.sdcf'),
+                         ]
+            import os
+            if os.name == "nt":
+                # on windows the last item gets selected
+                filetypes = filetypes[::-1]
+                
             fname = tkFileDialog.askopenfilename(parent=self.root, 
-                    filetypes=[('Any AE file', '.wfs .sdcf'),
-                               ('WFS', '.wfs'),
-                               ('SDCF','.sdcf'), 
-                              ])
+                    filetypes=filetypes)
         
         self.fig.clf()
         if not fname:
