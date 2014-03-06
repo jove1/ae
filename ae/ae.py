@@ -445,8 +445,8 @@ class SDCF(Data):
         buffer = np.empty(1, self.block_dtype)
         block_size = self.get_block_data(buffer)[0,...,0].size
         
-        pos = start//block_size*block_size
-        seek = start//block_size*buffer.itemsize
+        pos = start//block_size*long(block_size)
+        seek = start//block_size*long(buffer.itemsize)
         for fname in self.fnames:
             with io.open(fname, "rb", buffering=0) as fh:
                 file_size = os.fstat(fh.fileno()).st_size
