@@ -7,7 +7,7 @@ setup(name='ae',
       description='Python accoustic emission tools',
       author='Jozef Vesely',
       author_email='vesely@gjh.sk',
-      #url='',
+      url='http://github.com/jove1/ae',
       packages=['ae'],
       scripts=['AEViewer.py'],
       ext_modules=[
@@ -16,5 +16,6 @@ setup(name='ae',
               sources=['ae/event_detector.c'],
               ),
           ],
+      requires=['numpy']
       )
 
