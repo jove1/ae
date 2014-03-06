@@ -147,7 +147,7 @@ class Histogram(tk.Toplevel):
 
         ax = self.fig.gca()
         ax.set_title(name)
-        self.hist, self.bins, _ = ae.hist(data, ax=ax)
+        self.hist, self.bins, _ = ae.hist(data, ax=ax, density=True)
 
         self.update()
 
