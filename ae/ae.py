@@ -171,6 +171,7 @@ class Data:
         self.size = np.prod(self.shape)
 
         self.channels = tmp.shape[-1]
+        assert self.channels == len(self.datascale)
 
     def get_min_max(self, channel=0):
         try:
@@ -232,7 +233,7 @@ class Data:
 
         mins.min(axis=-1, out=y[::2])
         maxs.max(axis=-1, out=y[1::2])
-        y *= self.datascale
+        y *= self.datascale[channel]
         return x,y
 
     def plot(self, channel=0, ax=None, **kwargs):
@@ -256,7 +257,7 @@ class Data:
 
 
     def get_events(self, thresh, hdt=0.001, dead=0.001, pretrig=0.001, channel=0):
-        raw_thresh = int(thresh/self.datascale)
+        raw_thresh = int(thresh/self.datascale[channel])
         raw_hdt = int(hdt/self.timescale) 
         raw_pre = int(pretrig/self.timescale)
         raw_dead = int(dead/self.timescale)
@@ -265,7 +266,7 @@ class Data:
         def _get_event(start, stop, pos, prev_data, data):
             a = start-raw_pre-pos
             b = stop+raw_hdt-pos
-            datascale = self.datascale
+            datascale = self.datascale[channel]
 
             assert a<b # sanity
 
@@ -333,10 +334,12 @@ class SDCF(Data):
     
         self.parse_meta(fname, unknown_meta=kwargs.get("unknown_meta", False))
 
-        self.datascale = 1/32768.
+
+        
+        self.datascale = [1/32768.*2*10**((-35-gain)/20.) for gain in self.meta['2']['gains'][1:]]
         self.timescale = 1./self.meta['2']['rate']
         self.timeunit = "s"
-        self.dataunit = "?"
+        self.dataunit = "V"
 
         import os
         file_size = sum( os.stat(fname).st_size for fname in self.fnames)
@@ -486,12 +489,13 @@ class WFS(Data):
         with file(self.fname, "rb") as fh:
             file_size = os.fstat(fh.fileno()).st_size
             self._offset = self.parse_meta(fh.read(1024), unknown_meta=kwargs.get("unknown_meta", False))
-        self.calc_sizes(file_size-self._offset)
 
-        self.datascale = self.meta['hwsetup']['max.volt']/32768.
+        self.datascale = [self.meta['hwsetup']['max.volt']/32768.]
         self.timescale = 0.001/self.meta['hwsetup']['rate']
         self.timeunit = "s"
         self.dataunit = "V"
+
+        self.calc_sizes(file_size-self._offset)
 
     def parse_meta(self, data, unknown_meta=False):
         from struct import unpack_from,  calcsize

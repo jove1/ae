@@ -232,9 +232,9 @@ class AEViewer:
 
     def open(self, fname=None):
         if fname is None:
-            filetypes = [('Any AE file', '.wfs .sdcf'),
+            filetypes = [('Any AE file', '.wfs *-000000.sdcf'),
                          ('WFS', '.wfs'),
-                         ('SDCF','.sdcf'),
+                         ('SDCF','*-000000.sdcf'),
                          ]
             import os
             if os.name == "nt":
@@ -253,7 +253,7 @@ class AEViewer:
         self.data.progress = self.progress
         
         ax = self.fig.gca()
-        for ch in range(self.data.channels)[::-1]:
+        for ch in range(self.data.channels):
             self.data.plot(channel=ch, label="ch#{}".format(ch), ax=ax)
         ae.xpan(ax=ax)
         ax.legend()
@@ -274,7 +274,7 @@ class AEViewer:
             return
         
         _, samples = self.data.iter_blocks(stop=1000).next()
-        thresh = samples.std()*self.data.datascale*5
+        thresh = samples.std()*self.data.datascale[0]*5
         from math import log10
         thresh = round(thresh,int(-log10(thresh)+2))
         
