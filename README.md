@@ -39,5 +39,5 @@ python setup.py install
 ```
 
 ###Windows:
-Get windows installers of [python](http://python.org/downloads/windows/), [scipy-stack](http://www.lfd.uci.edu/~gohlke/pythonlibs/#scipy-stack) and [ae](https://pypi.python.org/pypi/ae/0.2) itself.
+Get windows installers of [python](http://python.org/downloads/windows/), [scipy-stack](http://www.lfd.uci.edu/~gohlke/pythonlibs/#scipy-stack) and [ae](https://pypi.python.org/pypi/ae) itself.
 
