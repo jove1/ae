@@ -267,7 +267,8 @@ class AEViewer:
                              # Fatal Python Error: PyEval_RestoreThread: NULL tstate
     
     def about(self):
-        tkMessageBox.showinfo("About AEViewer", "AEViewer © Jozef Vesely 2014")
+        from ae.version import version
+        tkMessageBox.showinfo("About AEViewer", "AEViewer {}\nCopyright © 2014 Jozef Vesely".format(version))
     
     def events(self):
         if self.data is None:
