@@ -119,10 +119,10 @@ class Events(np.ndarray):
         axes = set()
         for ax,e in izip(axiter, self):
             ax.plot(s*(np.arange(e.data.size)+e.start-self.pre), e.data, c="b")
-            ax.axvspan(s*(e.start-self.pre), s*e.start,  color="g", alpha=0.1)
-            ax.axvspan(s*e.start, s*e.stop,  color="g", alpha=0.4)
-            ax.axvspan(s*e.stop, s*(e.stop+self.hdt),  color="g", alpha=0.1)
-            ax.axvspan(s*(e.stop+self.hdt), s*(e.stop+self.hdt+self.dead),  color="r", alpha=0.1)
+            ax.axvspan(s*(e.start-self.pre), s*e.start,  color="g", alpha=0.25)
+            ax.axvspan(s*e.start, s*e.stop,  color="g", alpha=0.5)
+            ax.axvspan(s*e.stop, s*(e.stop+self.hdt),  color="g", alpha=0.25)
+            ax.axvspan(s*(e.stop+self.hdt), s*(e.stop+self.hdt+self.dead),  color="r", alpha=0.25)
             axes.add(ax)
 
         for ax in axes:
