@@ -161,11 +161,19 @@ class Events(np.ndarray):
 
 def text_progress(percent, time):
     import sys
-    if percent < 100:
-        sys.stderr.write("\r{:.0f}%".format(percent))
-        sys.stderr.flush()
+    sys.stderr.write("\r")
+    try:
+        from IPython.display import clear_output
+    except ImportError:
+        pass
     else:
-        sys.stderr.write("\r{:.0f}% {:.2f}s\n".format(percent, time))
+        clear_output(stdout=False, other=False)
+
+    if percent < 100:
+        sys.stderr.write("{:.0f}%".format(percent))
+    else:
+        sys.stderr.write("{:.0f}% {:.2f}s\n".format(percent, time))
+    sys.stderr.flush()
 
 def no_progress(percent, time):
     pass
