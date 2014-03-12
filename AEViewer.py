@@ -218,6 +218,7 @@ class AEViewer:
 
         filemenu = tk.Menu(menubar, tearoff=0)
         filemenu.add_command(label="Open", command=self.open)
+        filemenu.add_command(label="Metadata", command=self.meta)
         filemenu.add_separator()
         filemenu.add_command(label="Quit", command=self.quit)
         menubar.add_cascade(label="File", menu=filemenu)
@@ -229,6 +230,7 @@ class AEViewer:
         menubar.add_cascade(label="Help", menu=helpmenu)
 
         self.root.config(menu=menubar)
+
 
     def open(self, fname=None):
         if fname is None:
@@ -269,7 +271,20 @@ class AEViewer:
     def about(self):
         from ae.version import version
         tkMessageBox.showinfo("About AEViewer", "AEViewer {}\nCopyright © 2014 Jozef Vesely".format(version))
-    
+
+
+    def meta(self):
+        if self.data is None:
+            return 
+
+        win = tk.Toplevel(self.root)
+        win.wm_title("Metadata")
+
+        text = tk.Text(win)
+        text.insert(tk.END, str(self.data.meta))
+        text.config(state=tk.DISABLED)
+        text.pack(fill=tk.BOTH, expand=1)
+ 
     def events(self):
         if self.data is None:
             return
