@@ -140,7 +140,7 @@ class cross_build_ext(build_ext):
                                       dry_run=self.dry_run,
                                       force=self.force)
         
-        self.compiler.shared_lib_extension = ".pyd"
+        self.compiler.shared_lib_extension = ".pyd" # not used :(
 
         if self.libraries is not None:
             self.compiler.set_libraries(self.libraries)
@@ -189,6 +189,9 @@ class cross_build_ext(build_ext):
 
         # Now actually compile and link everything.
         self.build_extensions()
+
+    def get_ext_filename(self, ext_name):
+        return build_ext.get_ext_filename(self, ext_name).replace(".so",".pyd")
 
 class cross_bdist_wininst(bdist_wininst):
     user_options = build_ext.user_options + [
