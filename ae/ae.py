@@ -337,14 +337,14 @@ class Data:
         prev_data = np.zeros(raw_pre, dtype=self.dtype)
         from .event_detector import process_block
         for pos, data in self.iter_blocks(channel=channel):
-            ev, last = process_block(data, raw_thresh, hdt=raw_hdt, dead=raw_dead, event=last, pos=pos)
+            ev, last = process_block(data.astype("i2"), raw_thresh, hdt=raw_hdt, dead=raw_dead, event=last, pos=pos)
             for start,stop in ev:
                 events.append( _get_event(start, stop, pos, prev_data, data) )
             start = last[0] - pos if last else 0
             prev_data = data.flat[start-raw_pre:]
         if last:
             events.append( _get_event(last[0], last[1], pos, None, data) )
-       
+
         return Events(source=self, thresh=thresh, pre=raw_pre, hdt=raw_hdt, dead=raw_dead, data=events)
 
 from collections import OrderedDict
