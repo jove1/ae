@@ -98,6 +98,7 @@ class EventsTable(tk.Toplevel):
         
         menu = tk.Menu(self, tearoff=0)
         menu.add_command(label="Histogram", command=lambda: Histogram(self, label, getattr(self.events, name)))
+        menu.add_command(label="CDF", command=lambda: CDF(self, label, getattr(self.events, name)))
         menu.post(event.x_root, event.y_root)
 
     def on_doubleclick(self, event):
@@ -157,6 +158,39 @@ class Histogram(tk.Toplevel):
                     filetypes=[('Data file', '.txt .dat')])
         if fname:
             savetxt(fname, transpose([self.bins[:-1], self.bins[1:], self.hist]))
+
+class CDF(tk.Toplevel):
+    def __init__(self, master, name, data):
+        tk.Toplevel.__init__(self, master)
+        self.wm_title("CDF: {}".format(name))
+
+        self.fig = Figure(figsize=(4,3), dpi=100)
+        canvas = FigureCanvasTkAgg(self.fig, self)
+        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=1)
+        toolbar = NavigationToolbar2TkAgg(canvas, self)
+
+
+        menubar = tk.Menu(self)
+        menubar.add_command(label="Save Data", command=self.save)
+        self.config(menu=menubar)
+
+        ax = self.fig.gca()
+        ax.set_title(name)
+        self.x, self.y = ae.cdf(data)
+        
+        ax.plot(self.x, self.y, "o")
+        ax.loglog()
+        ax.grid(True)
+
+        self.update()
+
+    def save(self):
+        from numpy import savetxt, transpose
+        fname = tkFileDialog.asksaveasfilename(parent=self, 
+                    filetypes=[('Data file', '.txt .dat')])
+        if fname:
+            savetxt(fname, transpose([self.x, self.y]))
+
 
 class AEViewer:
     def __init__(self):
