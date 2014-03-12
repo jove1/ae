@@ -589,10 +589,11 @@ class WFS(Data):
         if remains:
             yield pos, buffer[:remains]
         if rest:
-            import warnings
-            warnings.warn("{} bytes left in the buffer".format(rest))
-            assert rest == 9
-            assert np.alltrue(buffer.view('B')[read-rest:read] == (7, 0, 15, 255, 255, 255, 255, 255, 127))
+            if rest == 9 and np.alltrue(buffer.view('B')[read-rest:read] == (7, 0, 15, 255, 255, 255, 255, 255, 127)):
+                pass
+            else:
+                import warnings
+                warnings.warn("{} bytes left in the buffer".format(rest))
 
 def open(fname, **kwargs):
     """
