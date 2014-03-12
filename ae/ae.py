@@ -32,8 +32,6 @@ class TimeFormatter(ScalarFormatter):
         #return s[:-more] + " " + s[-more:]
         return s
         
-
-
 import numpy as np
 
 def loghist(data, bins=50, range=None, density=None):
@@ -55,6 +53,35 @@ def loghist(data, bins=50, range=None, density=None):
     bins = np.exp(np.linspace(np.log(a), np.log(b), bins))
     hist, bins = np.histogram(data, bins, density=density)
     return hist, bins
+
+def random_power(xmin, a, size=1):
+    return xmin*(1-random.uniform(size=size))**(1./(a+1))
+
+def bin_centers(bins):
+    return (bins[1:] + bins[:-1])/2.
+
+def join_bins(bins, counts, mincount=10):
+    newbins, newcounts = [bins[0]], []
+    s = 0
+    for a,b in zip(counts,bins[1:]):
+        s += a
+        if s < mincount:
+            continue
+        newcounts.append(s)
+        newbins.append(b)
+        s = 0
+    if s > 0:
+        newcounts.append(s)
+        newbins.append(b)
+    return asarray(newbins), asarray(newcounts)
+
+def cdf(data):
+    return np.sort(data), np.arange(data.size,0,-1)
+
+def mle(xmin, data):
+    d = data[data>=xmin]
+    a = 1 - data.size/sum(log(xmin/d))
+    return -a, (a-1)/sqrt(d.size)       
 
 def hist(data, bins=50, range=None, ax=None, density=None):
     if ax is None:
