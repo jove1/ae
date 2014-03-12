@@ -514,6 +514,61 @@ class SDCF(Data):
             import warnings
             warnings.warn("{} bytes left in the buffer".format(rest))
 
+class BDAT(Data):
+
+    def __init__(self, fname, **kwargs):
+        self.fname = fname 
+        self.checks = kwargs.get("checks", False)
+
+        import os
+        with file(self.fname, "rb") as fh:
+            file_size = os.fstat(fh.fileno()).st_size
+            self._offset = 12
+
+        gain = kwargs.get("gain", 0)
+        self.datascale = [1/32768.*2*10**((-35-gain)/20.)]
+        self.timescale = 1e-6
+        self.timeunit = "?"
+        self.dataunit = "?"
+        self.meta = None
+
+        self.calc_sizes(file_size-self._offset)
+
+    block_dtype = np.dtype([
+            ("data", ">i2", (1024,1))])
+    get_block_data = staticmethod(lambda d: d['data'])
+ 
+    def check_block(self, pos, raw):
+        pass
+    
+    def raw_iter_blocks(self, start=0, stop=float('inf')):
+        import io, struct
+        buffer = np.empty(8192, self.block_dtype)
+        block_size = self.get_block_data(buffer)[0,...,0].size
+        
+        pos = start//block_size*block_size
+        seek = start//block_size*buffer.itemsize
+        with io.open(self.fname, "rb", buffering=0) as fh:
+            fh.seek( self._offset + seek)
+            while True:
+                read = fh.readinto(buffer)
+                if read < buffer.size*buffer.itemsize:
+                    break
+                else:
+                    yield pos, buffer
+                    pos += buffer.size*block_size
+                    if pos > stop:
+                        return 
+
+        remains = read // buffer.itemsize
+        rest = read % buffer.itemsize
+        if remains:
+            yield pos, buffer[:remains]
+        if rest:
+            import warnings
+            warnings.warn("{} bytes left in the buffer".format(rest))
+
+
 class WFS(Data):
 
     def __init__(self, fname, **kwargs):
@@ -646,6 +701,8 @@ def open(fname, **kwargs):
         return WFS(fname, **kwargs)
     elif ext == ".sdcf":
         return SDCF(fname, **kwargs)
+    elif ext == ".bdat":
+        return BDAT(fname, **kwargs)
     else:
         raise NotImplementedError("Unknown format {}".format(ext))
 

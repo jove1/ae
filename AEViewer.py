@@ -268,15 +268,19 @@ class AEViewer:
 
     def open(self, fname=None):
         if fname is None:
-            filetypes = [('Any AE file', '.wfs *-000000.sdcf'),
-                         ('WFS', '.wfs'),
-                         ('SDCF','*-000000.sdcf'),
+            filetypes = [('WFS', '.wfs'),
+                         ('SDCF', '*-000000.sdcf'),
+                         ('BDAT', '.bdat'),
                          ]
+            anytype = ('Any AE file', ' '.join(pattern for name, pattern in filetypes))
+
             import os
             if os.name == "nt":
                 # on windows the last item gets selected
-                filetypes = filetypes[::-1]
-                
+                filetypes.append(anytype)
+            else:
+                filetypes.insert(0, anytype)
+
             fname = tkFileDialog.askopenfilename(parent=self.root, 
                     filetypes=filetypes)
         
