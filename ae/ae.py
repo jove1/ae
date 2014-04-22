@@ -692,7 +692,7 @@ class WFS(Data):
                 import warnings
                 warnings.warn("{} bytes left in the buffer".format(rest))
 
-def open(fname, **kwargs):
+def open(fname=None, **kwargs):
     """
     Opens file using appropriate :class:`Data` subclass. Currently 
     supports .wfs format. 
@@ -701,6 +701,30 @@ def open(fname, **kwargs):
     :return: :class:`.ae.Data` subclass instance
     """
     
+    if fname is None:
+        filetypes = [('WFS', '.wfs'),
+                     ('SDCF', '*-000000.sdcf'),
+                     ('BDAT', '.bdat'),
+                     ]
+        anytype = ('Any AE file', ' '.join(pattern for name, pattern in filetypes))
+
+        import os
+        if os.name == "nt":
+            # on windows the last item gets selected
+            filetypes.append(anytype)
+        else:
+            filetypes.insert(0, anytype)
+        
+        try:
+            kw = {'parent': kwargs.pop('parent') } 
+        except KeyError:
+            kw = {}
+        import tkFileDialog
+        fname = tkFileDialog.askopenfilename(filetypes=filetypes, **kw)
+        
+        if not fname:
+            raise ValueError
+
     import os.path
     _, ext = os.path.splitext(fname)
     ext = ext.lower()

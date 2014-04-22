@@ -267,29 +267,10 @@ class AEViewer:
 
 
     def open(self, fname=None):
-        if fname is None:
-            filetypes = [('WFS', '.wfs'),
-                         ('SDCF', '*-000000.sdcf'),
-                         ('BDAT', '.bdat'),
-                         ]
-            anytype = ('Any AE file', ' '.join(pattern for name, pattern in filetypes))
-
-            import os
-            if os.name == "nt":
-                # on windows the last item gets selected
-                filetypes.append(anytype)
-            else:
-                filetypes.insert(0, anytype)
-
-            fname = tkFileDialog.askopenfilename(parent=self.root, 
-                    filetypes=filetypes)
         
         self.fig.clf()
-        if not fname:
-            self.data = None
-            return
-
-        self.data = ae.open(fname)
+        self.data = None
+        self.data = ae.open(fname, parent=self.root)
         self.data.progress = self.progress
         
         ax = self.fig.gca()
