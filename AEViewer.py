@@ -63,6 +63,10 @@ class EventsTable(tk.Toplevel):
 
         self.events = events
 
+        menubar = tk.Menu(self)
+        menubar.add_command(label="Save Data", command=self.save)
+        self.config(menu=menubar)
+
         self.tree = ttk.Treeview(self, columns=[name for label,name,width in self.columns])
         ysb = ttk.Scrollbar(self, orient='vertical', command=self.tree.yview)
 
@@ -84,6 +88,13 @@ class EventsTable(tk.Toplevel):
         self.tree.bind("<Button-3>", self.on_rightclick)
 
         tkMessageBox.showinfo("Events", "Found {} events.".format(events.size), parent=self)
+
+    def save(self):
+        from numpy import savetxt, transpose
+        fname = tkFileDialog.asksaveasfilename(parent=self, 
+                    filetypes=[('Data file', '.txt .dat')])
+        if fname:
+            savetxt(fname, transpose([getattr(self.events, name) for label, name, width in self.columns]))
 
 
     def on_rightclick(self, event):
