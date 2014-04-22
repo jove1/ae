@@ -281,8 +281,11 @@ class AEViewer:
     def open(self, fname=None):
         
         self.fig.clf()
-        self.data = None
-        self.data = ae.open(fname, parent=self.root)
+        try:
+            self.data = ae.open(fname, parent=self.root)
+        except ValueError:
+            self.data = None
+            return 
         self.data.progress = self.progress
         
         ax = self.fig.gca()
