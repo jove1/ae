@@ -303,16 +303,16 @@ class Data:
             b = stop+raw_hdt-pos
             datascale = self.datascale[channel]
 
-            assert a<b # sanity
+            assert a<b, (a,b) # sanity
 
             if a < 0:
-                assert a >= -prev_data.size
+                assert a >= -prev_data.size, (a, prev_data.size)
                 if b <0:
                     # whole event in prev_data, we waited only for dead time 
                     ev_data = prev_data[a:b]*datascale
                 else:
                     # part in prev_data part in data
-                    assert b <= data.size
+                    assert b <= data.size, (b, data.size)
                     ev_data = np.concatenate((
                         prev_data[a:],
                         data.flat[:b]
@@ -323,7 +323,7 @@ class Data:
                     ev_data = data.flat[a:b]*datascale
                 else:
                     # pad with zeros
-                    assert a <= data.size
+                    assert a <= data.size, (a, data.size)
                     ev_data = np.concatenate((
                         data.flat[a:],
                         np.zeros(b-data.size, dtype=data.dtype)
@@ -332,6 +332,13 @@ class Data:
             assert ev_data.size == raw_pre + stop-start + raw_hdt
             return Event(start, stop, ev_data)
 
+        def _add_event(*args):
+            try:
+                events.append(_get_event(*args))
+            except:
+                import traceback
+                traceback.print_exc()
+
         last = None
         events = []
         prev_data = np.zeros(raw_pre, dtype=self.dtype)
@@ -339,11 +346,11 @@ class Data:
         for pos, data in self.iter_blocks(channel=channel):
             ev, last = process_block(data.astype("i2"), raw_thresh, hdt=raw_hdt, dead=raw_dead, event=last, pos=pos)
             for start,stop in ev:
-                events.append( _get_event(start, stop, pos, prev_data, data) )
+                _add_event(start, stop, pos, prev_data, data)
             start = last[0] - pos if last else 0
             prev_data = data.flat[start-raw_pre:]
         if last:
-            events.append( _get_event(last[0], last[1], pos, None, data) )
+            _add_event(last[0], last[1], pos, None, data)
 
         return Events(source=self, thresh=thresh, pre=raw_pre, hdt=raw_hdt, dead=raw_dead, data=events)
 
