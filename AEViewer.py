@@ -264,6 +264,7 @@ class AEViewer:
         filemenu = tk.Menu(menubar, tearoff=0)
         filemenu.add_command(label="Open", command=self.open)
         filemenu.add_command(label="Metadata", command=self.meta)
+        filemenu.add_command(label="Save Envelope", command=self.save)
         filemenu.add_separator()
         filemenu.add_command(label="Quit", command=self.quit)
         menubar.add_cascade(label="File", menu=filemenu)
@@ -301,6 +302,14 @@ class AEViewer:
     def about(self):
         from ae.version import version
         tkMessageBox.showinfo("About AEViewer", "AEViewer {}\nCopyright © 2014 Jozef Vesely".format(version))
+
+    def save(self):
+        from numpy import savetxt, transpose
+        fname = tkFileDialog.asksaveasfilename(parent=self.root, 
+                    filetypes=[('Data file', '.txt .dat')])
+        if fname:
+            x,y = self.data.resample( (0,self.data.size*self.data.timescale), channel=0, num=10000)
+            savetxt(fname, transpose([x,y]))
 
 
     def meta(self):
