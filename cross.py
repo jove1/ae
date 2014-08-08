@@ -196,12 +196,16 @@ class cross_build_ext(build_ext):
 class cross_bdist_wininst(bdist_wininst):
     user_options = build_ext.user_options + [
         ('wininst-exe=', None,
+         "location of wininst.exe"),
+        ('wininst-exe-path=', None,
          "location of wininst.exe")
+
     ]
 
     def initialize_options(self):
         bdist_wininst.initialize_options(self)
         self.wininst_exe = None
+        self.wininst_exe_path = None
 
     def finalize_options(self):
         self.skip_build = True
@@ -211,7 +215,7 @@ class cross_bdist_wininst(bdist_wininst):
 
         if self.wininst_exe is None:
             import distutils.command.bdist_wininst
-            directory = os.path.dirname(distutils.command.bdist_wininst.__file__)
+            directory = self.wininst_exe_path or os.path.dirname(distutils.command.bdist_wininst.__file__)
             wininst = wininst_table.get( self.plat_name+"-"+self.target_version )
             
             self.wininst_exe = os.path.join(directory, wininst)
