@@ -8,11 +8,12 @@ static char process_block_doc[] =
 static PyObject *
 process_block(PyObject* self, PyObject *args, PyObject *kwds)
 {
-    int threshold, hdt = 1000, dead = 1000, pos=0;
+    int threshold, hdt = 1000, dead = 1000, pos=0, limit=0;
     PyObject *data = NULL, *event_arg = NULL, *list=NULL;
     
-    static char *kwlist[] = {"data", "threshold", "hdt", "dead", "pos", "event", "list", NULL};
-    if (! PyArg_ParseTupleAndKeywords(args, kwds, "Oi|iiiOO", kwlist, &data, &threshold, &hdt, &dead, &pos, &event_arg, &list))
+    static char *kwlist[] = {"data", "threshold", "hdt", "dead", "pos", "limit", "event", "list", NULL};
+    if (! PyArg_ParseTupleAndKeywords(args, kwds, "Oi|iiiiOO",
+                kwlist, &data, &threshold, &hdt, &dead, &pos, &limit, &event_arg, &list))
         return NULL;
     
     if (!PyArray_Check(data) || PyArray_TYPE((PyArrayObject *)data) != NPY_SHORT) {
@@ -67,11 +68,18 @@ process_block(PyObject* self, PyObject *args, PyObject *kwds)
         if (d > threshold) {
             if (event){
                 if (i < end-1+hdt) {
-                    /* extend event */
-                    end = i+1;
+                    if (limit && end-start > limit){
+                        /* emit and restart event if over limit */
+                        EVENT(start, end);
+                        start = i;
+                        end = i+1;
+                    } else {
+                        /* extend event */
+                        end = i+1;
+                    }
                 } else //this else makes 1s difference :)
                 if (i >= end-1+hdt+dead) {
-                    /* emit and restart event*/
+                    /* emit and restart event */
                     EVENT(start, end)
                     start = i;
                     end = i+1;

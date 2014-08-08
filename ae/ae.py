@@ -291,7 +291,7 @@ class Data:
         return line
 
 
-    def get_events(self, thresh, hdt=0.001, dead=0.001, pretrig=0.001, channel=0):
+    def get_events(self, thresh, hdt=0.001, dead=0.001, pretrig=0.001, channel=0, limit=0):
         raw_thresh = int(thresh/self.datascale[channel])
         raw_hdt = int(hdt/self.timescale) 
         raw_pre = int(pretrig/self.timescale)
@@ -344,7 +344,7 @@ class Data:
         prev_data = np.zeros(raw_pre, dtype=self.dtype)
         from .event_detector import process_block
         for pos, data in self.iter_blocks(channel=channel):
-            ev, last = process_block(data.astype("i2"), raw_thresh, hdt=raw_hdt, dead=raw_dead, event=last, pos=pos)
+            ev, last = process_block(data.astype("i2"), raw_thresh, hdt=raw_hdt, dead=raw_dead, event=last, pos=pos, limit=limit)
             for start,stop in ev:
                 _add_event(start, stop, pos, prev_data, data)
             start = last[0] - pos if last else 0
