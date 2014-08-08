@@ -361,7 +361,7 @@ class AEViewer:
             ("Dead time [{}]:".format(self.data.timeunit), 0.001),
             ("Pre-trigger [{}]:".format(self.data.timeunit), 0.001),
             ("Channel:", 0),
-            ("Limit [samples, 0=disabled]:", 0),
+            ("Limit [{}, 0=disabled]:".format(self.data.timeunit), 0.),
             ])
 
         if d.result is None:
