@@ -14,6 +14,25 @@ import tkMessageBox
 import tkFileDialog
 import tkSimpleDialog
 
+old_fixoptions = tkFileDialog._Dialog._fixoptions
+old_fixresult = tkFileDialog._Dialog._fixresult
+
+def new_fixoptions(self):
+    old_fixoptions(self)
+    self.options["initialdir"] = tkFileDialog._Dialog._initialdir
+
+def new_fixresult(self, widget, result):
+    r = old_fixresult(self, widget, result)
+    try:
+        tkFileDialog._Dialog._initialdir = self.options["initialdir"]
+    except KeyError:
+        pass
+    return r
+
+tkFileDialog._Dialog._initialdir = "."
+tkFileDialog._Dialog._fixoptions = new_fixoptions
+tkFileDialog._Dialog._fixresult = new_fixresult
+
 import ae
 
 class Dialog(tkSimpleDialog.Dialog):
