@@ -78,7 +78,7 @@ class EventsTable(tk.Toplevel):
 
     def __init__(self, master, events):
         tk.Toplevel.__init__(self, master)
-        self.wm_title("Events")
+        self.wm_title("{} events".format(events.size))
 
         self.events = events
 
@@ -106,7 +106,7 @@ class EventsTable(tk.Toplevel):
         self.tree.bind("<Double-1>", self.on_doubleclick)
         self.tree.bind("<Button-3>", self.on_rightclick)
 
-        tkMessageBox.showinfo("Events", "Found {} events.".format(events.size), parent=self)
+        #tkMessageBox.showinfo("Events", "Found {} events.".format(events.size), parent=self)
 
     def save(self):
         from numpy import savetxt, transpose
