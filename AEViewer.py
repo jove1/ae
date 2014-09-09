@@ -119,39 +119,32 @@ class EventsTable(tk.Toplevel):
 
     def on_rightclick(self, event):
         row = self.tree.identify_row(event.y)
-        if row: # only clicks on headings (use identify_region in Tk 8.6)
-            return
-        col = self.tree.identify_column(event.x)
-        if col == "#0":
-            return
-        col = int(col.lstrip("#"))
-        label, name, _ = self.columns[col-1]
+        if row:
+            item = int(row)
+            self.tree.selection_set(row)
+            menu = tk.Menu(self, tearoff=0)
+            menu.add_command(label="Waveform", command=lambda: Waveform(self, item, self.events[[item]]))
+            menu.add_command(label="PSD", command=lambda: PSD(self, item, self.events[[item]]))
+            menu.post(event.x_root, event.y_root)
         
-        menu = tk.Menu(self, tearoff=0)
-        menu.add_command(label="Histogram", command=lambda: Histogram(self, label, getattr(self.events, name)))
-        menu.add_command(label="CDF", command=lambda: CDF(self, label, getattr(self.events, name)))
-        menu.post(event.x_root, event.y_root)
+        else:
+            col = self.tree.identify_column(event.x)
+            if col == "#0":
+                return
+            col = int(col.lstrip("#"))
+            label, name, _ = self.columns[col-1]
+        
+            menu = tk.Menu(self, tearoff=0)
+            menu.add_command(label="Histogram", command=lambda: Histogram(self, label, getattr(self.events, name)))
+            menu.add_command(label="CDF", command=lambda: CDF(self, label, getattr(self.events, name)))
+            menu.post(event.x_root, event.y_root)
 
     def on_doubleclick(self, event):
         item = self.tree.identify_row(event.y)
         if not item:
             return
-
         item = int(item)
-
-        win = tk.Toplevel(self)
-        win.wm_title("Event #{}".format(item))
-
-        fig = Figure(figsize=(4,3), dpi=100)
-        canvas = FigureCanvasTkAgg(fig, win)
-        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=1)
-        toolbar = NavigationToolbar2TkAgg(canvas, win)
-        ax = fig.gca()
-        self.events[[item]].plot(ax)
-        ax.set_title("Event #{}".format(item))
-        ax.grid(True)
-        fig.tight_layout()
-        win.update()
+        Waveform(self, item, self.events[[item]])
 
     def sort(self, name, reverse):
         from numpy import argsort
@@ -161,6 +154,41 @@ class EventsTable(tk.Toplevel):
         for i,j in enumerate(order):
             self.tree.move(str(j),'',i)
         self.tree.heading(name, command=lambda: self.sort(name, not reverse))
+
+class Waveform(tk.Toplevel):
+    def __init__(self, master, item, event):
+        tk.Toplevel.__init__(self, master)
+        self.wm_title("Waveform: event #{}".format(item))
+
+        fig = Figure(figsize=(4,3), dpi=100)
+        canvas = FigureCanvasTkAgg(fig, self)
+        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=1)
+        toolbar = NavigationToolbar2TkAgg(canvas, self)
+        ax = fig.gca()
+        event.plot(ax)
+        ax.set_title("Event #{}".format(item))
+        ax.grid(True)
+        fig.tight_layout()
+        self.update()
+
+class PSD(tk.Toplevel):
+    def __init__(self, master, item, event):
+        tk.Toplevel.__init__(self, master)
+        self.wm_title("PSD: event #{}".format(item))
+
+        fig = Figure(figsize=(4,3), dpi=100)
+        canvas = FigureCanvasTkAgg(fig, self)
+        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=1)
+        toolbar = NavigationToolbar2TkAgg(canvas, self)
+        ax = fig.gca()
+
+        f,p = event[0].psd()
+        ax.plot(f,p)
+
+        ax.set_title("Event #{}".format(item))
+        ax.grid(True)
+        fig.tight_layout()
+        self.update()
 
 class Histogram(tk.Toplevel):
     def __init__(self, master, name, data):
