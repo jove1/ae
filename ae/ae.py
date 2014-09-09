@@ -105,24 +105,23 @@ Event.max = property(lambda e: e.data.max() )
 Event.rise_time = property(lambda e: np.argmax(e.data) )
 Event.count = lambda e, thresh: count(e.data, thresh)
 
+from scipy.signal import welch
+Event.psd = lambda e,**kwargs: welch(e.data,**kwargs)
+
 class Events(np.ndarray):
-    def __new__(cls, source, thresh, pre, hdt, dead, data):
-        obj = np.ndarray(len(data),dtype=object).view(cls)
-        obj[:] = data
-        obj.source = source
-        obj.thresh = thresh
-        obj.pre = pre
-        obj.hdt = hdt
-        obj.dead = dead
-        return obj
+    extra_attributes = ["source", "thresh", "pre", "hdt", "dead"]
+
+    def __new__(cls, data, **kwargs):
+        self = np.ndarray.__new__(cls, len(data), dtype=object)
+        self[:] = data
+        for a in self.extra_attributes: # initialize attributes
+            setattr(self, a, kwargs.get(a))
+        return self
 
     def __array_finalize__(self, obj):
-        if obj is None: return
-        self.source = getattr(obj, 'source', None)
-        self.thresh = getattr(obj, 'thresh', None)
-        self.pre = getattr(obj, 'pre', None)
-        self.hdt = getattr(obj, 'hdt', None)
-        self.dead = getattr(obj, 'dead', None)
+        if obj is not None:
+            for a in self.extra_attributes: # copy attributes
+                setattr(self, a, getattr(obj, a, None))
 
     starts = property(lambda self: np.array([e.start for e in self])*self.source.timescale)
     durations = property(lambda self: np.array([e.duration for e in self])*self.source.timescale)
@@ -132,6 +131,11 @@ class Events(np.ndarray):
 
     counts = property(lambda self: np.array([ e.count(self.thresh) for e in self]))
     
+    def psd(self,**kwargs):
+        Pxxs = np.array([e.psd(**kwargs)[1] for e in self])
+        f = e.psd(**kwargs)[0]
+        return f,  Pxxs
+
     def plot(self, ax=None):
         from itertools import izip, repeat
         if ax is None:
