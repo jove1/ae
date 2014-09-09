@@ -33,6 +33,7 @@ tkFileDialog._Dialog._initialdir = "."
 tkFileDialog._Dialog._fixoptions = new_fixoptions
 tkFileDialog._Dialog._fixresult = new_fixresult
 
+print "import ae"
 import ae
 
 class Dialog(tkSimpleDialog.Dialog):
@@ -302,6 +303,7 @@ class AEViewer:
         self.fig.clf()
         try:
             self.data = ae.open(fname, parent=self.root)
+            print "f = ae.open({!r})".format(self.data.fname)
         except ValueError:
             self.data = None
             return 
@@ -366,6 +368,7 @@ class AEViewer:
 
         if d.result is None:
             return
+        print "e = f.get_events{}".format(tuple(d.result))
         events = self.data.get_events(*d.result)
 
         EventsTable(self.root, events)
