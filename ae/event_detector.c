@@ -3,7 +3,7 @@
 
 
 static char process_block_doc[] =
-"process_block(data, threshold, hdt=1000, dead=1000, pos=0, event=None, list=None)\n";
+"process_block(data, threshold, hdt=1000, dead=1000, pos=0, limit=0, event=None, list=None)\n";
 
 static PyObject *
 process_block(PyObject* self, PyObject *args, PyObject *kwds)
@@ -45,6 +45,7 @@ process_block(PyObject* self, PyObject *args, PyObject *kwds)
     }
 
 #define EVENT(a,b) \
+    { \
     PyObject *val = Py_BuildValue("(ii)", a, b); \
     if (!val) { \
         if (new_list) Py_DECREF(list); \
@@ -52,7 +53,8 @@ process_block(PyObject* self, PyObject *args, PyObject *kwds)
         return PyErr_NoMemory(); \
     } \
     PyList_Append(list, val); \
-    Py_DECREF(val);
+    Py_DECREF(val); \
+    }
     
 
     PyObject *iter = PyArray_IterNew(data); 
@@ -101,11 +103,15 @@ process_block(PyObject* self, PyObject *args, PyObject *kwds)
         event = 0;
     }
 
-
+    PyObject *ret;
     if (event)
-        return Py_BuildValue("O(ii)", list, start, end);
+        ret = Py_BuildValue("O(ii)", list, start, end);
     else
-        return Py_BuildValue("OO", list, Py_None);
+        ret = Py_BuildValue("OO", list, Py_None);
+
+    Py_DECREF(iter);
+    Py_DECREF(list);
+    return ret;
 }
 
 static PyMethodDef event_detector_methods[] = {
