@@ -359,6 +359,31 @@ class Data:
 
         return Events(source=self, thresh=thresh, pre=raw_pre, hdt=raw_hdt, dead=raw_dead, data=events)
 
+    def save_bdat(self, fname, channel=0):
+        from __builtin__ import open
+        with open(fname, "wb") as fh:
+            for _, data in self.iter_blocks(channel=channel):
+                data.astype(">i2").tofile(fh)
+        
+    def save_wav(self, fname, channel=0, rate=None):
+        import wave
+        w = wave.open(fname,"w")
+        w.setnchannels(1)
+        if rate is None:
+            w.setframerate(1./self.timescale)
+        else:    
+            w.setframerate(rate)
+       
+        it = self.iter_blocks(channel=channel)
+        _,data = it.next()
+        w.setsampwidth(data.itemsize)
+
+        w.writeframes(data.tostring())
+        for _,data in it:
+            w.writeframes(data.tostring())
+        w.close()
+
+
 from collections import OrderedDict
 class PrettyOrderedDict(OrderedDict):
     def __str__(d, prefix=""):
