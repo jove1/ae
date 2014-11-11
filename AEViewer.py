@@ -119,6 +119,7 @@ class EventsTable(tk.Toplevel):
 
     def on_rightclick(self, event):
         row = self.tree.identify_row(event.y)
+        col = self.tree.identify_column(event.x)
         if row:
             item = int(row)
             self.tree.selection_set(row)
@@ -127,10 +128,7 @@ class EventsTable(tk.Toplevel):
             menu.add_command(label="PSD", command=lambda: PSD(self, item, self.events[[item]]))
             menu.post(event.x_root, event.y_root)
         
-        else:
-            col = self.tree.identify_column(event.x)
-            if col == "#0":
-                return
+        elif col != "#0":
             col = int(col.lstrip("#"))
             label, name, _ = self.columns[col-1]
         
@@ -312,7 +310,7 @@ class AEViewer:
         filemenu = tk.Menu(menubar, tearoff=0)
         filemenu.add_command(label="Open", command=self.open)
         filemenu.add_command(label="Metadata", command=self.meta)
-        filemenu.add_command(label="Save Envelope", command=self.save)
+        filemenu.add_command(label="Save", command=self.save)
         filemenu.add_separator()
         filemenu.add_command(label="Quit", command=self.quit)
         menubar.add_cascade(label="File", menu=filemenu)
@@ -358,10 +356,15 @@ class AEViewer:
     def save(self):
         from numpy import savetxt, transpose
         fname = tkFileDialog.asksaveasfilename(parent=self.root, 
-                    filetypes=[('Data file', '.txt .dat')])
-        if fname:
+                    filetypes=[('Envelope', '.txt .dat'), ('WAV','.wav'), ('BDAT','.bdat')])
+
+        if fname[-4:] in [".txt", ".dat"]:
             x,y = self.data.resample( (0,self.data.size*self.data.timescale), channel=0, num=10000)
             savetxt(fname, transpose([x,y]))
+        elif fname[-4:] == ".wav":
+            self.data.save_wav(fname)
+        elif fname[-5:] == ".bdat":
+            self.data.save_bdat(fname)
 
 
     def meta(self):
