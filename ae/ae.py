@@ -202,7 +202,10 @@ class Data:
 
     def calc_sizes(self, file_size):
         n_blocks = file_size // self.block_dtype.itemsize
-        #print "rest", file_size % self.block_dtype.itemsize
+        rest = file_size % self.block_dtype.itemsize
+        if rest:
+            import warnings
+            warnings.warn("{} bytes at the end of file won't fit into blocks".format(rest))
 
         tmp = self.get_block_data( np.empty(0, self.block_dtype) )
         self.dtype = tmp.dtype
@@ -359,28 +362,49 @@ class Data:
 
         return Events(source=self, thresh=thresh, pre=raw_pre, hdt=raw_hdt, dead=raw_dead, data=events)
 
-    def save_bdat(self, fname, channel=0):
+    def save_bdat(self, fname, channel=0, range=(0,float("inf"))):
+        """
+        save data to fname as bdat file format 
+        channel and data range (in samples) to save can be specfied
+        """
+
         from __builtin__ import open
+        start, end = range
         with open(fname, "wb") as fh:
-            for _, data in self.iter_blocks(channel=channel):
-                data.astype(">i2").tofile(fh)
+            fh.write("\0"*12)
+            for pos, data in self.iter_blocks(start=start, stop=end, channel=channel):
+                if pos < start or pos+data.size > end:
+                    a = max(0, start-pos)
+                    b = min(data.size, end-pos)
+                    data.flat[a:b].astype(">i2").tofile(fh)
+                else:
+                    data.astype(">i2").tofile(fh)
         
-    def save_wav(self, fname, channel=0, rate=None):
+    def save_wav(self, fname, channel=0, range=(0,float("inf")), rate=None):
+        """
+        save data to fname as wav file format 
+        channel, data range (in samples) to save can be specfied
+        if rate is not None it overides the sample rate saved into wav
+        """
+
         import wave
+        
         w = wave.open(fname,"w")
         w.setnchannels(1)
+        w.setsampwidth(self.dtype.itemsize)
         if rate is None:
             w.setframerate(1./self.timescale)
         else:    
             w.setframerate(rate)
-       
-        it = self.iter_blocks(channel=channel)
-        _,data = it.next()
-        w.setsampwidth(data.itemsize)
 
-        w.writeframes(data.tostring())
-        for _,data in it:
-            w.writeframes(data.tostring())
+        start, end = range
+        for pos, data in self.iter_blocks(start=start, stop=end, channel=channel):
+            if pos < start or pos+data.size > end:
+                a = max(0, start-pos)
+                b = min(data.size, end-pos)
+                w.writeframes(data.flat[a:b].astype(">i2").tostring())
+            else:
+                w.writeframes(data.astype(">i2").tostring())
         w.close()
 
 

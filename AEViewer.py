@@ -354,17 +354,38 @@ class AEViewer:
         tkMessageBox.showinfo("About AEViewer", "AEViewer {}\nCopyright © 2014 Jozef Vesely".format(version))
 
     def save(self):
-        from numpy import savetxt, transpose
+        if self.data is None:
+            return
+        ax = self.fig.gca()
+        start,end = ax.get_xlim()
+
+        d = Dialog(self.root, "Save data", [
+            ("Start [{}]:".format(self.data.timeunit), start),
+            ("End [{}]:".format(self.data.timeunit), end),
+            ("Channel:", 0),
+            ])
+        if d.result is None:
+            return
+        
         fname = tkFileDialog.asksaveasfilename(parent=self.root, 
                     filetypes=[('Envelope', '.txt .dat'), ('WAV','.wav'), ('BDAT','.bdat')])
+        if not fname:
+            return 
+        
+        start, end, channel = d.result
 
         if fname[-4:] in [".txt", ".dat"]:
-            x,y = self.data.resample( (0,self.data.size*self.data.timescale), channel=0, num=10000)
+            from numpy import savetxt, transpose
+            x,y = self.data.resample( (start,end), channel=channel, num=10000)
             savetxt(fname, transpose([x,y]))
+
         elif fname[-4:] == ".wav":
-            self.data.save_wav(fname)
+            r = int(start/self.data.timescale), int(end/self.data.timescale)
+            self.data.save_wav(fname, range=r, channel=channel)
+
         elif fname[-5:] == ".bdat":
-            self.data.save_bdat(fname)
+            r = int(start/self.data.timescale), int(end/self.data.timescale)
+            self.data.save_bdat(fname, range=r, channel=channel)
 
 
     def meta(self):
