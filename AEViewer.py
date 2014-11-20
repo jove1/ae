@@ -363,6 +363,7 @@ class AEViewer:
             ("Start [{}]:".format(self.data.timeunit), start),
             ("End [{}]:".format(self.data.timeunit), end),
             ("Channel:", 0),
+            ("WAV Rate [1/{}]:".format(self.data.timeunit), int(1/self.data.timescale))
             ])
         if d.result is None:
             return
@@ -372,7 +373,7 @@ class AEViewer:
         if not fname:
             return 
         
-        start, end, channel = d.result
+        start, end, channel, rate = d.result
 
         if fname[-4:] in [".txt", ".dat"]:
             from numpy import savetxt, transpose
@@ -381,7 +382,7 @@ class AEViewer:
 
         elif fname[-4:] == ".wav":
             r = int(start/self.data.timescale), int(end/self.data.timescale)
-            self.data.save_wav(fname, range=r, channel=channel)
+            self.data.save_wav(fname, range=r, channel=channel, rate=rate)
 
         elif fname[-5:] == ".bdat":
             r = int(start/self.data.timescale), int(end/self.data.timescale)
