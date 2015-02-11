@@ -29,7 +29,7 @@ Python acoustic emission tools.
 ##Install
 ###Dependencies: 
 * [python](http://python.org)
-* [numpy](http://scipy.org)
+* [scipy](http://scipy.org)
 * [matplotlib](http://matplotlib.org)
 
 ###Linux:
@@ -40,9 +40,10 @@ python setup.py install
 
 ###Windows:
 Install [python 2](http://python.org/downloads/windows/).
-Get corresponding [numpy](http://www.lfd.uci.edu/~gohlke/pythonlibs/#numpy) package and run:
+Get corresponding [numpy](http://www.lfd.uci.edu/~gohlke/pythonlibs/#numpy) and [scipy](http://www.lfd.uci.edu/~gohlke/pythonlibs/#scipy) packages and run:
 ```
 C:\Python27\Scripts\pip.exe install numpy‑....whl
+C:\Python27\Scripts\pip.exe install scipy‑....whl
 C:\Python27\Scripts\pip.exe install matplotlib
 ```
 Finally, install [ae](https://pypi.python.org/pypi/ae) itself.
