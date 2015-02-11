@@ -39,5 +39,11 @@ python setup.py install
 ```
 
 ###Windows:
-Get windows installers of [python](http://python.org/downloads/windows/), [scipy-stack](http://www.lfd.uci.edu/~gohlke/pythonlibs/#scipy-stack) and [ae](https://pypi.python.org/pypi/ae) itself.
+Install [python 2](http://python.org/downloads/windows/).
+Get corresponding [numpy](http://www.lfd.uci.edu/~gohlke/pythonlibs/#numpy) package and run:
+```
+C:\Python27\Scripts\pip.exe install numpy‑....whl
+C:\Python27\Scripts\pip.exe install matplotlib
+```
+Finally, install [ae](https://pypi.python.org/pypi/ae) itself.
 
