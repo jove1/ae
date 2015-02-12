@@ -237,14 +237,17 @@ class Data:
         return mins, maxs
 
     def resample(self, range, channel=0, num=768):
+        from math import floor, ceil
+        def clip(x,a,b):
+            return min(max(x,a),b)
         a,b = range
-        a = int(np.floor(a/self.timescale))
-        b = int(np.ceil(b/self.timescale)) + 1
+        a = int(floor(a/self.timescale))
+        b = int(ceil(b/self.timescale)) + 1
         s = max((b-a)//num, 1)
         #print "resample", s, b-a
 
-        a = np.clip(a, 0, self.size)
-        b = np.clip(b, 0, self.size)
+        a = clip(a, 0, self.size)
+        b = clip(b, 0, self.size)
 
         r = self.shape[-1]
         if s > r:
@@ -262,8 +265,8 @@ class Data:
         else:
             blocks = []
             for pos, d in self.iter_blocks(start=a//s*s, stop=b//s*s, channel=channel, progress=no_progress):
-                aa = np.clip(a//s*s-pos, 0, d.size)
-                bb = np.clip(b//s*s-pos, 0, d.size)
+                aa = clip(a//s*s-pos, 0, d.size)
+                bb = clip(b//s*s-pos, 0, d.size)
                 blocks.append(d.flat[aa:bb])
             d = np.concatenate(blocks)
             d.shape = (d.size//s, s)
@@ -285,10 +288,14 @@ class Data:
         line, = ax.plot([], [], **kwargs)
 
         def update(ax):
-            x, y = self.resample(ax.viewLim.intervalx, channel=channel)
-            line.set_data(x,y)
-            ax.figure.canvas.draw_idle()
-        
+            try:
+                x, y = self.resample(ax.viewLim.intervalx, channel=channel)
+                line.set_data(x,y)
+                ax.figure.canvas.draw_idle()
+            except:
+                import traceback
+                traceback.print_exc()
+
         ax.callbacks.connect('xlim_changed', update)
         ax.set_xlim(0,(self.size-1)*self.timescale)
         ax.relim()
