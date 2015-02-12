@@ -222,7 +222,17 @@ class Data:
             self._min_max_cache = {}
         except KeyError:
             pass
-        
+
+        cachefn = self.fname+".envelope.cache.{}.npz".format(channel)
+        try:
+            d = np.load(cachefn)
+            mins, maxs = d['mins'], d['maxs']
+            self._min_max_cache[channel] = (mins,maxs)
+            #print "envelope in cache"
+            return (mins,maxs)
+        except:
+            pass
+
         mins = np.empty(self.shape[:-1], dtype=self.dtype)
         maxs = np.empty(self.shape[:-1], dtype=self.dtype)
         block = 0
@@ -234,6 +244,8 @@ class Data:
         maxs.shape = (maxs.size,)
 
         self._min_max_cache[channel] = (mins,maxs)
+        np.savez(cachefn, mins=mins, maxs=maxs)
+
         return mins, maxs
 
     def resample(self, range, channel=0, num=768):
