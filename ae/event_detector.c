@@ -8,11 +8,12 @@ static char process_block_doc[] =
 static PyObject *
 process_block(PyObject* self, PyObject *args, PyObject *kwds)
 {
-    int threshold, hdt = 1000, dead = 1000, pos=0, limit=0;
-    PyObject *data = NULL, *event_arg = NULL, *list=NULL;
+    int threshold;
+    long long hdt=1000, dead=1000, pos=0, limit=0;
+    PyObject *data=NULL, *event_arg=NULL, *list=NULL;
     
     static char *kwlist[] = {"data", "threshold", "hdt", "dead", "pos", "limit", "event", "list", NULL};
-    if (! PyArg_ParseTupleAndKeywords(args, kwds, "Oi|iiiiOO",
+    if (! PyArg_ParseTupleAndKeywords(args, kwds, "Oi|LLLLOO",
                 kwlist, &data, &threshold, &hdt, &dead, &pos, &limit, &event_arg, &list))
         return NULL;
     
@@ -21,9 +22,10 @@ process_block(PyObject* self, PyObject *args, PyObject *kwds)
         return NULL;
     }
 
-    int start, end, event = 0;
+    long long start, end;
+    int event = 0;
     if (event_arg && event_arg != Py_None) {
-        if ( !PyTuple_Check(event_arg) || !PyArg_ParseTuple(event_arg, "ii", &start, &end)) {
+        if ( !PyTuple_Check(event_arg) || !PyArg_ParseTuple(event_arg, "LL", &start, &end)) {
             PyErr_SetString(PyExc_TypeError, "event must be None or tuple of two integers");
             return NULL;
         }
@@ -46,7 +48,7 @@ process_block(PyObject* self, PyObject *args, PyObject *kwds)
 
 #define EVENT(a,b) \
     { \
-    PyObject *val = Py_BuildValue("(ii)", a, b); \
+    PyObject *val = Py_BuildValue("(LL)", a, b); \
     if (!val) { \
         if (new_list) Py_DECREF(list); \
         Py_DECREF(iter); \
@@ -65,7 +67,7 @@ process_block(PyObject* self, PyObject *args, PyObject *kwds)
 
     while (PyArray_ITER_NOTDONE(iter)) {
         const short d = *(short*)PyArray_ITER_DATA(iter);
-        const int i = ((PyArrayIterObject*)iter)->index + pos;
+        const long long i = ((PyArrayIterObject*)iter)->index + pos;
        
         if (d > threshold) {
             if (event){
@@ -97,7 +99,7 @@ process_block(PyObject* self, PyObject *args, PyObject *kwds)
     }
     
     /* (possibly) emit last event */
-    const int i = ((PyArrayIterObject*)iter)->index + pos;
+    const long long i = ((PyArrayIterObject*)iter)->index + pos;
     if (event && i >= end-1+hdt+dead){
         EVENT(start, end)
         event = 0;
@@ -105,12 +107,12 @@ process_block(PyObject* self, PyObject *args, PyObject *kwds)
 
     PyObject *ret;
     if (event)
-        ret = Py_BuildValue("O(ii)", list, start, end);
+        ret = Py_BuildValue("O(LL)", list, start, end);
     else
         ret = Py_BuildValue("OO", list, Py_None);
 
     Py_DECREF(iter);
-    Py_DECREF(list);
+    if (new_list) Py_DECREF(list);
     return ret;
 }
 
