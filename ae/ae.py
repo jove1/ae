@@ -421,9 +421,9 @@ class Data:
             if pos < start or pos+data.size > end:
                 a = max(0, start-pos)
                 b = min(data.size, end-pos)
-                w.writeframes(data.flat[a:b].astype(">i2").tostring())
+                w.writeframes(data.flat[a:b].astype("<i2").tostring())
             else:
-                w.writeframes(data.astype(">i2").tostring())
+                w.writeframes(data.astype("<i2").tostring())
         w.close()
 
 
@@ -594,28 +594,9 @@ class SDCF(Data):
             import warnings
             warnings.warn("{} bytes left in the buffer".format(rest))
 
-class BDAT(Data):
 
-    def __init__(self, fname, **kwargs):
-        self.fname = fname 
-        self.checks = kwargs.get("checks", False)
+class ContigousBase(Data):
 
-        import os
-        with file(self.fname, "rb") as fh:
-            file_size = os.fstat(fh.fileno()).st_size
-            self._offset = 12
-
-        gain = kwargs.get("gain", 0)
-        self.datascale = [1/32768.*2*10**((-35-gain)/20.)]
-        self.timescale = 1e-6
-        self.timeunit = "?"
-        self.dataunit = "?"
-        self.meta = None
-
-        self.calc_sizes(file_size-self._offset)
-
-    block_dtype = np.dtype([
-            ("data", ">i2", (1024,1))])
     get_block_data = staticmethod(lambda d: d['data'])
  
     def check_block(self, pos, raw):
@@ -647,6 +628,83 @@ class BDAT(Data):
         if rest:
             import warnings
             warnings.warn("{} bytes left in the buffer".format(rest))
+
+class BDAT(ContigousBase):
+    def __init__(self, fname, **kwargs):
+        self.fname = fname 
+        self.checks = kwargs.get("checks", False)
+
+        import os
+        with file(self.fname, "rb") as fh:
+            file_size = os.fstat(fh.fileno()).st_size
+            self._offset = 12
+
+        gain = kwargs.get("gain", 0)
+        self.datascale = [1/32768.*2*10**((-35-gain)/20.)]
+        self.timescale = 1e-6
+        self.timeunit = "?"
+        self.dataunit = "?"
+        self.meta = None
+
+        self.calc_sizes(file_size-self._offset)
+
+    block_dtype = np.dtype([
+            ("data", ">i2", (1024,1))])
+
+
+class WAV(ContigousBase):
+
+    def __init__(self, fname, **kwargs):
+        self.fname = fname 
+        self.checks = kwargs.get("checks", False)
+
+        import os
+        with file(self.fname, "rb") as fh:
+            file_size = os.fstat(fh.fileno()).st_size
+            self._offset = self.parse_meta(fh.read(1024))
+        
+        assert self.meta['fmt'] == 1
+
+        self.block_dtype = np.dtype([
+            ("data", "<i{}".format(self.meta['bps']/8), (1024,self.meta['nchan']))])
+
+        self.datascale = [1.]*self.meta['nchan']
+        self.timescale = 1./self.meta['rate']
+        self.timeunit = "s"
+        self.dataunit = "?"
+
+        self.calc_sizes(file_size-self._offset)
+
+    def parse_meta(self, data):
+        from struct import unpack_from,  calcsize
+        self.meta = PrettyOrderedDict()
+        offset = 0
+        while offset < len(data):
+            chunk, size = unpack_from("<4sL", data, offset)
+            if chunk == "RIFF":
+                waveid, = unpack_from("<4s", data, offset+8)
+                assert waveid == "WAVE"
+                offset += 12 # "dive" into this chunk, don't use size to skip over
+            
+            elif chunk == "fmt ":
+                assert size ==  16
+                fmt, nchan, rate, _, _, bps = unpack_from("<HHLLHH", data, offset+8)
+                self.meta['fmt'] = fmt
+                self.meta['nchan'] = nchan
+                self.meta['rate'] = rate
+                self.meta['bps'] = bps
+                
+                offset += 8 + size
+
+            elif chunk == "data":
+                return offset + 8
+
+            else:
+                import warnings
+                warnings.warn("unknown chunk {!r}".format(chunk))
+                offset += 8 + size
+            
+        raise ValueError("Data block not found")
 
 
 class WFS(Data):
@@ -778,6 +836,7 @@ def open(fname=None, **kwargs):
         filetypes = [('WFS', '.wfs'),
                      ('SDCF', '*-000000.sdcf'),
                      ('BDAT', '.bdat'),
+                     ('WAV', '.wav'),
                      ]
         anytype = ('Any AE file', ' '.join(pattern for name, pattern in filetypes))
 
@@ -807,6 +866,8 @@ def open(fname=None, **kwargs):
         return SDCF(fname, **kwargs)
     elif ext == ".bdat":
         return BDAT(fname, **kwargs)
+    elif ext == ".wav":
+        return WAV(fname, **kwargs)
     else:
         raise NotImplementedError("Unknown format {}".format(ext))
 
