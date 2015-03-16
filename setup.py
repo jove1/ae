@@ -28,6 +28,7 @@ setup(
             sources=['src/ae/event_detector.c'],
         ),
     ],
+    test_suite = 'ae.test.suite', # setuptools
     requires = ['numpy'],
     options = {
         "bdist_wininst": {

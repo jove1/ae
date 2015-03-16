@@ -18,10 +18,10 @@ version:
 
 test: version
 	#python setup.py test
-	python -m doctest -v ae/event_detector.doctest.rst
+	python -c "import setuptools; execfile('setup.py')" test
 
 clean:
 	rm -Rf build dist/ae-* ae.egg-info
 
 
-.PHONY: ae/version.py clean test
+.PHONY: version test clean
