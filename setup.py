@@ -1,21 +1,20 @@
 #!/usr/bin/env python
 
 from distutils.core import setup, Extension
-import os.path, sys
+#from setuptools import setup, Extension
+import sys
 
 extra_scripts = []
-install_script = "ae_post_install.py"
-
 if "bdist_wininst" in sys.argv:
-    extra_scripts.append(install_script)
-    extra_scripts.append("AEViewer.ico")
+    extra_scripts.append("src/ae_post_install.py")
+    extra_scripts.append("src/AEViewer.ico")
 
 cmdclass = {}
 if "cross" in sys.argv:
     sys.argv.remove("cross")
     from cross import cross_cmdclass as cmdclass
 
-execfile('ae/version.py') # __version__
+execfile('src/ae/version.py') # __version__
 
 setup(
     name = 'ae',
@@ -26,17 +25,18 @@ setup(
     url = 'http://github.com/jove1/ae',
 
     packages = ['ae'],
-    scripts = ['AEViewer.py'] + extra_scripts,
+    package_dir = {'': 'src'},
+    scripts = ['src/AEViewer.py'] + extra_scripts,
     ext_modules = [
         Extension('ae.event_detector',
             define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],
-            sources=['ae/event_detector.c'],
+            sources=['src/ae/event_detector.c'],
         ),
     ],
     requires = ['numpy'],
     options = {
         "bdist_wininst": {
-            "install_script": install_script,
+            "install_script": "ae_post_install.py",
             "user_access_control": "auto",
         }
     },
