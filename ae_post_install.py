@@ -7,7 +7,7 @@ def install():
     target = os.path.join(sys.prefix, 'python.exe')
     description = "AEViewer"
     workdir = "%HOMEDRIVE%%HOMEPATH%"
-    arguments = os.path.join(sys.prefix, "Scripts", "AEViewer.py")
+    arguments = '"{}"'.format(os.path.join(sys.prefix, "Scripts", "AEViewer.py"))
     iconpath =  os.path.join(sys.prefix, "Scripts", "AEViewer.ico")
     iconindex = 0
     
