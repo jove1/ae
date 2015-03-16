@@ -2,12 +2,8 @@
 
 from distutils.core import setup, Extension
 #from setuptools import setup, Extension
-import sys
 
-cmdclass = {}
-if "cross" in sys.argv:
-    sys.argv.remove("cross")
-    from cross import cross_cmdclass as cmdclass
+from cross import cross_cmdclass
 
 execfile('src/ae/version.py') # __version__
 
@@ -21,20 +17,31 @@ setup(
 
     packages = ['ae'],
     package_dir = {'': 'src'},
+    package_data = {
+        'ae': ['*.doctest.rst'],
+    },
+    test_suite = 'ae.test.suite', # setuptools
+
     scripts = ['src/AEViewer.py', 'src/ae_post_install.py', 'src/AEViewer.ico'],
+    #entry_points = {
+    #   'console_scripts': ['helloworld = greatings.helloworld:main']
+    #},
+ 
     ext_modules = [
         Extension('ae.event_detector',
             define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],
             sources=['src/ae/event_detector.c'],
         ),
     ],
-    test_suite = 'ae.test.suite', # setuptools
     requires = ['numpy'],
+    #setup_requires = ['numpy'],
+    #install_requires = ['numpy', 'matplotlib'],
+
     options = {
         "bdist_wininst": {
             "install_script": "ae_post_install.py",
             "user_access_control": "auto",
         }
     },
-    cmdclass = cmdclass,
+    cmdclass = cross_cmdclass,
 )

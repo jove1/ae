@@ -46,7 +46,6 @@ from distutils import log
 from distutils.dir_util import remove_tree
 from distutils.errors import DistutilsOptionError, DistutilsFileError
 
-
 class cross_build(build):
     user_options = build.user_options + [
         ('cross-dir=', None,
@@ -62,40 +61,21 @@ class cross_build(build):
         self.cross_dir = None
         self.cross_ver = None
         self.cross_compiler = None
-    
+
     def finalize_options(self):
-        if self.cross_dir is None:
-            build.finalize_options(self)
-        else: 
-            import re, os.path
-            regexp = ".*\.(win32|win-amd64)-((?:[0-9])\.(?:[0-9]))"
-            plat, ver = re.match(regexp, self.cross_dir).groups()
+        os_name = os.name
+        sys_version = sys.version
 
-            if self.plat_name is None:
-                self.plat_name = plat
+        if self.plat_name: # allow plat_name override on non windows platforms
+            os.name = "nt"
 
-            if self.cross_ver is None:
-                self.cross_ver = ver
+        if self.cross_ver: # version override
+            sys.version = self.cross_ver
 
-            if self.build_purelib is None:
-                self.build_purelib = os.path.join(self.build_base,
-                                                  'lib.{}-{}'.format(self.plat_name, self.cross_ver))
-            if self.build_platlib is None:
-                self.build_platlib = os.path.join(self.build_base,
-                                                  'lib.{}-{}'.format(self.plat_name, self.cross_ver))
+        build.finalize_options(self)
 
-            if self.build_lib is None:
-                if self.distribution.ext_modules:
-                    self.build_lib = self.build_platlib
-                else:
-                    self.build_lib = self.build_purelib
-
-            if self.build_temp is None:
-                self.build_temp = os.path.join(self.build_base,
-                                               'temp.{}-{}'.format(self.plat_name, self.cross_ver))
-            if self.build_scripts is None:
-                self.build_scripts = os.path.join(self.build_base,
-                                                  'scripts-{}'.format(self.cross_ver) )
+        sys.version = sys_version
+        os.name = os_name
 
 class cross_build_ext(build_ext):
     user_options = build_ext.user_options + [
@@ -118,7 +98,6 @@ class cross_build_ext(build_ext):
         self.set_undefined_options('build',
                 ('cross_dir', 'cross_dir'),
                 ('cross_ver', 'cross_ver'),
-                ('cross_compiler', 'cross_compiler'),
         )
 
         if self.cross_compiler is None:
@@ -126,6 +105,9 @@ class cross_build_ext(build_ext):
                                     "win-amd64": "x86_64-w64-mingw32-gcc" }.get(self.plat_name)
 
     def run(self):
+        if self.cross_dir is None:
+            return build_ext.run(self)
+
         if not self.extensions:
             return
 
@@ -139,7 +121,7 @@ class cross_build_ext(build_ext):
         self.compiler = UnixCCompiler(verbose=self.verbose,
                                       dry_run=self.dry_run,
                                       force=self.force)
-        
+
         self.compiler.shared_lib_extension = ".pyd" # not used :(
 
         if self.libraries is not None:
@@ -159,7 +141,6 @@ class cross_build_ext(build_ext):
         python_lib_fname = self.compiler.static_lib_format % (python_lib, self.compiler.static_lib_extension )
         if not os.path.exists( os.path.join(self.cross_dir, python_lib_fname) ):
             log.info("making link library %s for %s in %s", python_lib_fname, python_lib, self.cross_dir)
-            print self.cross_compiler.replace("gcc","dlltool")
             subprocess.check_call([self.cross_compiler.replace("gcc","dlltool"), 
                 "--dllname", python_lib+".dll",
                 "--def", python_lib+".def", 
@@ -180,7 +161,7 @@ class cross_build_ext(build_ext):
         )
 
 
-        if "win-amd64" == self.plat_name:
+        if self.plat_name == "win-amd64":
             self.compiler.define_macro("MS_WIN64")
         
         self.compiler.add_library(python_lib)
@@ -191,6 +172,9 @@ class cross_build_ext(build_ext):
         self.build_extensions()
 
     def get_ext_filename(self, ext_name):
+        if self.cross_dir is None:
+            return build_ext.get_ext_filename(self, ext_name)
+
         return build_ext.get_ext_filename(self, ext_name).replace(".so",".pyd")
 
 class cross_bdist_wininst(bdist_wininst):
