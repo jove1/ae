@@ -4,11 +4,6 @@ from distutils.core import setup, Extension
 #from setuptools import setup, Extension
 import sys
 
-extra_scripts = []
-if "bdist_wininst" in sys.argv:
-    extra_scripts.append("src/ae_post_install.py")
-    extra_scripts.append("src/AEViewer.ico")
-
 cmdclass = {}
 if "cross" in sys.argv:
     sys.argv.remove("cross")
@@ -26,7 +21,7 @@ setup(
 
     packages = ['ae'],
     package_dir = {'': 'src'},
-    scripts = ['src/AEViewer.py'] + extra_scripts,
+    scripts = ['src/AEViewer.py', 'src/ae_post_install.py', 'src/AEViewer.ico'],
     ext_modules = [
         Extension('ae.event_detector',
             define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],
