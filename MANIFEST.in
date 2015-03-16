@@ -1,1 +1,1 @@
-include Makefile cross.py README.md
+include Makefile cross.py README.md MANIFEST.in
