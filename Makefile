@@ -3,7 +3,7 @@ PYTHON?=python
 
 all: sdist wininst
 
-sdist: version
+sdist:
 	$(PYTHON) setup.py build sdist
 
 wininst: wininst32 wininst64
