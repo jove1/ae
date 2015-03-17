@@ -5,7 +5,15 @@ from distutils.core import setup, Extension
 
 from cross import cross_cmdclass
 
-execfile('src/ae/version.py') # __version__
+import subprocess
+try:
+    __version__ = subprocess.check_output(["git", "describe", "--tags", "--always"]).strip("v\n")
+except subprocess.CalledProcessError:
+    execfile('src/ae/version.py') # __version__
+else:
+    with open('src/ae/version.py','w') as f:
+        f.write("__version__ = {!r}\n".format(__version__))
+
 
 setup(
     name = 'ae',
