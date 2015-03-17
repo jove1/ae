@@ -200,9 +200,12 @@ class cross_bdist_wininst(bdist_wininst):
         if self.wininst_exe is None:
             import distutils.command.bdist_wininst
             directory = self.wininst_exe_path or os.path.dirname(distutils.command.bdist_wininst.__file__)
-            wininst = wininst_table.get( self.plat_name+"-"+self.target_version )
-            
-            self.wininst_exe = os.path.join(directory, wininst)
+            try:
+                wininst = wininst_table[self.plat_name+"-"+self.target_version]
+            except KeyError:
+                pass
+            else:
+                self.wininst_exe = os.path.join(directory, wininst)
 
     def run (self):
         if not self.skip_build:
