@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 
-from distutils.core import setup, Extension
-#from setuptools import setup, Extension
+#from distutils.core import setup, Extension
+from setuptools import setup, Extension
 
-from cross import cross_cmdclass
 
 import subprocess
 try:
@@ -51,5 +50,4 @@ setup(
             "user_access_control": "auto",
         }
     },
-    cmdclass = cross_cmdclass,
 )
