@@ -40,9 +40,9 @@ setup(
             sources=['src/ae/event_detector.c'],
         ),
     ],
-    requires = ['numpy'],
-    #setup_requires = ['numpy'],
-    #install_requires = ['numpy', 'matplotlib'],
+    #requires = ['numpy'],
+    setup_requires = ['numpy'],
+    install_requires = ['numpy', 'scipy', 'matplotlib'],
 
     options = {
         "bdist_wininst": {
