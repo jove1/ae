@@ -6,7 +6,8 @@ from setuptools import setup, Extension
 
 import subprocess
 try:
-    __version__ = subprocess.check_output(["git", "describe", "--tags", "--always"]).strip("v\n")
+    a,b,c = subprocess.check_output(["git", "describe", "--tags", "--always"]).strip("v\n").split("-")
+    __version__ = "{}.{}".format(a,b)
 except subprocess.CalledProcessError:
     execfile('src/ae/version.py') # __version__
 else:
