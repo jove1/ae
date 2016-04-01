@@ -722,7 +722,23 @@ class WFS(Data):
             file_size = os.fstat(fh.fileno()).st_size
             self._offset = self.parse_meta(fh.read(1024), unknown_meta=kwargs.get("unknown_meta", False))
 
-        self.datascale = [self.meta['hwsetup']['max.volt']/32768.]
+        # determine number of channels
+        import io
+        buf = np.empty(10, self.ch_block_dtype)
+        with io.open(self.fname, "rb", buffering=0) as fh:
+            fh.seek( self._offset)
+            fh.readinto(buf)
+        for ch in xrange(1,10):
+            if buf['chan'][ch] == ch +1:
+                continue
+            elif buf['chan'][ch] == 1:
+                break
+            else:
+                raise ValueError("Invalid channels: %s".format(buf['chan']))
+
+        self.block_dtype = np.dtype([ ('ch_data', self.ch_block_dtype, (ch,))])
+
+        self.datascale = [self.meta['hwsetup']['max.volt']/32768.]*ch
         self.timescale = 0.001/self.meta['hwsetup']['rate']
         self.timeunit = "s"
         self.dataunit = "V"
@@ -783,14 +799,17 @@ class WFS(Data):
         raise ValueError("Data block not found")
 
 
-    block_dtype = np.dtype([
-            ("size", "u2"), 
+    ch_block_dtype = np.dtype([
+            ("size", "u2"),
             ("id1", "u1"),
             ("id2", "u1"),
-            ("unknown", "S26"), 
-            ("data", "i2", (1024,1))])
-    get_block_data = staticmethod(lambda d: d['data'])
- 
+            ("unknown1", "S6"),
+            ("chan", "u1"),
+            ("unknown2", "S19"),
+            ("data", "i2", (1024))])
+
+    get_block_data = staticmethod(lambda d: d['ch_data']['data'].swapaxes(-1,-2))
+
     def check_block(self, pos, raw):
         if self.checks:
             assert np.alltrue(raw['size'] == 2076) 
