@@ -36,6 +36,11 @@ tkFileDialog._Dialog._fixresult = new_fixresult
 print "import ae"
 import ae
 
+try:
+    from ae import askc_wrap
+except ImportError:
+    askc_wrap = None
+
 class Dialog(tkSimpleDialog.Dialog):
     def __init__(self, master, title, fields):
         self.fields = fields
@@ -315,7 +320,13 @@ class AEViewer:
         filemenu.add_command(label="Quit", command=self.quit)
         menubar.add_cascade(label="File", menu=filemenu)
 
-        menubar.add_command(label="Events", command=self.events)
+
+
+        processmenu = tk.Menu(menubar, tearoff=0)
+        processmenu.add_command(label="Events", command=self.events)
+        if askc_wrap is not None:
+            processmenu.add_command(label="ASKC", command=self.askc)
+        menubar.add_cascade(label="Process", menu=processmenu)
 
         helpmenu = tk.Menu(menubar, tearoff=0)
         helpmenu.add_command(label="About", command=self.about)
@@ -425,6 +436,18 @@ class AEViewer:
         events = self.data.get_events(*d.result)
 
         EventsTable(self.root, events)
+
+    def askc(self):
+        if self.data is None:
+            return 
+        
+        if askc_wrap is None:
+            return 
+
+        reader = askc_wrap.AEReader(d=self.data)
+        top = tk.Toplevel(self.root)
+        askc_wrap.gui(top, reader)
+
 
 if __name__ == "__main__":
     import sys
