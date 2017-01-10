@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO)
 from traits.trait_base import ETSConfig
 ETSConfig.toolkit = 'null'
 
-from traits.api import provides, HasTraits, List, cached_property, Enum, Any, Property
+from traits.api import provides, HasTraits, List, cached_property, Enum, Any, Property, Int
 
 import pyae.cluster.ask
 class ASKC(pyae.cluster.ask.ASKC):
@@ -24,13 +24,18 @@ import numpy as np
 @provides(IRead)
 class AEReader(HasTraits):
     d = Any()
+    skip_frames = Int()
     meta = Property(List(), depends_on=['d'])
 
     def c_read(self, num_ticks, win_size, channel=1, pad=False):
         assert num_ticks == 0
         assert pad == False
         buf = np.array([])
-        source = self.d.iter_blocks(channel=channel-1)
+        source = self.d.iter_blocks(start=win_size*self.skip_frames, channel=channel-1)
+        pos, data = source.next()
+        offset = win_size*self.skip_frames-pos
+        print "seek", pos, win_size*self.skip_frames, offset
+        buf = np.append(buf, data.flat[offset:])
         try:
             while True:
                 while len(buf) < win_size:
@@ -297,123 +302,187 @@ import Tkinter as tk
 import tkFileDialog
 import tkMessageBox
 
-def gui(top=None, reader=None):
+class Item:
+    def __init__(self, item, **kwargs):
+        self.item = item
+        self.kwargs = kwargs
+
+    def grid(self, *args, **kwargs):
+        kwargs.update(self.kwargs)
+        self.item.grid(*args, **kwargs)
+
+def make_grid(frame, grid):
+    for r,row in enumerate(grid):
+        for c,item in enumerate(row):
+            if item is None:
+                continue
+            if isinstance(item, str):
+                item = tk.Label(frame, text=item)
+            item.grid(row=r, column=c, sticky="W")
+
+class Vals:
+    def __init__(self, **kwargs):
+        m = {str: tk.StringVar,
+             int: tk.IntVar,
+             float: tk.DoubleVar}
+
+        for k,v in kwargs.items():
+            self.__dict__[k] = m[type(v)](value=v)
+
+    def get(self):
+        return {k:v.get() for k,v in self.__dict__.items()}
+
+class Updater:
+    def __init__(self, vals, skip, num):
+        self.skip_time = tk.DoubleVar(value=skip)
+        self.n_time = tk.DoubleVar(value=num)
+
+        self.fs = vals.fs
+        self.frame_size = vals.frame_size
+        self.skip_frames = vals.skip_signals
+        self.n_frames = vals.n_signals
+        
+        self.updating = False
+        
+        self.fs.trace("w", self.update_frames)
+        self.frame_size.trace("w", self.update_frames)
+        self.skip_time.trace("w", self.update_frames)
+        self.n_time.trace("w", self.update_frames)
+
+        self.skip_frames.trace("w", self.update_times)
+        self.n_frames.trace("w", self.update_times)
+
+        self.update_frames()
+    
+    def update_frames(self, *args):
+        if self.updating:
+            return 
+        self.updating = True
+        try:
+            self.skip_frames.set(int(self.skip_time.get()*1e6*self.fs.get()/self.frame_size.get()))
+            self.n_frames.set(int(self.n_time.get()*1e6*self.fs.get()/self.frame_size.get()))
+        except ValueError:
+            pass
+        finally:
+            self.updating = False
+
+    def update_times(self, *args):
+        if self.updating:
+            return
+        self.updating = True
+        try:
+            self.skip_time.set(self.skip_frames.get()*self.frame_size.get()/1e6/self.fs.get())
+            self.n_time.set(self.n_frames.get()*self.frame_size.get()/1e6/self.fs.get())
+        except ValueError:
+            pass
+        finally:
+            self.updating = False
+
+
+def gui(top=None, reader=None, time_range=(0,5)):
     top = top or tk.Tk()
     top.title("ASKC Run")
 
-    data = [
-        ('param_txt_filename',      "Output file:",         tk.StringVar(value="askc_results.csv")),
-        ('fs',                      "Sample rate [Mhz]:",   tk.DoubleVar(value=1.0)),
-        ('channel',                 "Channel:",             tk.IntVar(value=1)),
-        ('frame_size',              "Frame size:",          tk.IntVar(value=1024)),
-        ('n_signals',               "Num. signals:",        tk.IntVar(value=5000)),
-        ('noise_frames',            "Noise frames:",        tk.IntVar(value=0)),
-        ('how_many_noise_sigma',    "Noise sigma:",         tk.IntVar(value=2)),
-        ('significance_threshold',  "Sign. thresh.:",       tk.IntVar(value=150)),
-        ('max_num_clusters',        "Max. clusters:",       tk.IntVar(value=10)),
-        ('distance',                "Distance:",            tk.StringVar(value='KL')),
+    vals = Vals(
+        param_txt_filename = "askc_results.csv",
+        fs = 1e-6/reader.d.timescale if reader else 1.,
+        channel = 1,
+        frame_size = 1024,
+        skip_signals = 0,
+        n_signals = 5000,
+        noise_frames = 0,
+        how_many_noise_sigma = 2,
+        significance_threshold = 150,
+        max_num_clusters = 10,
+        distance = 'KL',
 
-        ('nperseg',                 "nperseg:",             tk.IntVar(value=256)),
-        ('nfft',                    "nfft:",                tk.IntVar(value=512)),
-        ('noverlap',                "noverlap:",            tk.IntVar(value=64)),
-        
-        ('do_filter',               "Filter:",              tk.StringVar(value='bandpass')),
-        ('cutoff_freq',             "Cutoff [kHz]:",        tk.DoubleVar(value=60.0)),
-        ('low_cutoff_freq',         "Low cutoff [kHz]:",    tk.DoubleVar(value=300.0)),
-        ('high_cutoff_freq',        "High cutoff [kHz]:",   tk.DoubleVar(value=500.0)),
-    ]
+        nperseg = 256,
+        nfft = 512,
+        noverlap = 64,
 
-    if reader is None:
-        data.insert(0, 
-        ('fname',                   "Input file:",          tk.StringVar())
-        )
-
-    vals={k:v for k,_,v in data}
-    lbls={k:v for k,v,_ in data}
-
+        do_filter = 'bandpass',
+        cutoff_freq = 60.,
+        low_cutoff_freq = 300.,
+        high_cutoff_freq = 500.,
+    )
+    if not reader:
+        vals.fname = tk.StringVar()
+   
+    u = Updater(vals, time_range[0], time_range[1]-time_range[0])
+    
     def openfile(event=None):
         fname = tkFileDialog.askopenfilename(parent=top, filetypes=[('WFS', '.wfs')])
-        vals['fname'].set(fname)
+        vals.fname.set(fname)
 
     def savefile(event=None):
-        fname = tkFileDialog.asksaveasfilename(parent=top, initialfile=vals['param_txt_filename'].get())
-        vals['param_txt_filename'].set(fname)
-
-    row = 0
+        fname = tkFileDialog.asksaveasfilename(parent=top, initialfile=vals.param_txt_filename.get())
+        vals.param_txt_filename.set(fname)
+    
     frame = tk.LabelFrame(top, text="Basic parameters")
     frame.pack(padx=5, pady=5, fill=tk.X)
+    grid = [
+        ("Output file:", tk.Entry(frame, text=vals.param_txt_filename, state="readonly", justify=tk.RIGHT, width=10), tk.Button(frame, text="...", command=savefile) ),
+        ("Sample rate:", tk.Entry(frame, text=vals.fs, justify=tk.RIGHT, width=10), "MHz"),
+        ("Channel:", tk.Entry(frame, text=vals.channel, justify=tk.RIGHT, width=10)),
+        ("Frame size:", tk.Entry(frame, text=vals.frame_size, justify=tk.RIGHT, width=10)),
+        ("Skip signals:", tk.Entry(frame, text=vals.skip_signals, justify=tk.RIGHT, width=10), "frames", tk.Entry(frame, text=u.skip_time, justify=tk.RIGHT, width=10), "s"),
+        ("Num. signals:", tk.Entry(frame, text=vals.n_signals, justify=tk.RIGHT, width=10), "frames", tk.Entry(frame, text=u.n_time, justify=tk.RIGHT, width=10), "s"),
+        ("Noise frames:", tk.Entry(frame, text=vals.noise_frames, justify=tk.RIGHT, width=10)),
+        ("Noise sigma:", tk.Entry(frame, text=vals.how_many_noise_sigma, justify=tk.RIGHT, width=10)),
+        ("Sign. thresh.:", tk.Entry(frame, text=vals.significance_threshold, justify=tk.RIGHT, width=10)),
+        ("Max. clusters:", tk.Entry(frame, text=vals.max_num_clusters, justify=tk.RIGHT, width=10)),
+        ("Distance:", tk.OptionMenu(frame, vals.distance, "KL", "Euclidean", "SAM")),
+    ]
+    if not reader:
+        grid.insert(0,
+            ("Input file:", tk.Entry(frame, text=vals.fname, state="readonly", justify=tk.RIGHT, width=10), tk.Button(frame, text="...", command=openfile)),
+        )
+    make_grid(frame, grid)
     
-    if reader is None:
-        for k in ['fname']:
-            tk.Label(frame, text=lbls[k]).grid(row=row, sticky="W")
-            tk.Entry(frame, text=vals[k], state="readonly").grid(row=row, column=1)
-            tk.Button(frame, text="...", command=openfile).grid(row=row, column=2)
-            row += 1
-
-    for k in ['param_txt_filename']:
-        tk.Label(frame, text=lbls[k]).grid(row=row, sticky="W")
-        tk.Entry(frame, text=vals[k], state="readonly").grid(row=row, column=1)
-        tk.Button(frame, text="...", command=savefile).grid(row=row, column=2)
-        row += 1
-
-    for k in ['fs', 'channel', 'frame_size', 'n_signals', 'noise_frames', 'how_many_noise_sigma', 'significance_threshold', 'max_num_clusters']:
-        tk.Label(frame, text=lbls[k]).grid(row=row, sticky="W")
-        tk.Entry(frame, text=vals[k]).grid(row=row, column=1, sticky="W")
-        row += 1
-
-    for k in ['distance']:
-        tk.Label(frame, text=lbls[k]).grid(row=row, sticky="W")
-        tk.OptionMenu(frame, vals[k], "KL", "Euclidean", "SAM").grid(row=row, column=1, sticky="W")
-        row += 1
-
-    row = 0
     frame = tk.LabelFrame(top, text="FFT")
     frame.pack(padx=5, pady=5, fill=tk.X)
-
-    for k in ['nperseg', 'nfft', 'noverlap']:
-        tk.Label(frame, text=lbls[k]).grid(row=row, sticky="W")
-        tk.Entry(frame, text=vals[k]).grid(row=row, column=1, sticky="W")
-        row += 1
-
-    row = 0
+    grid = [
+        ("nperseg:", tk.Entry(frame, text=vals.nperseg, justify=tk.RIGHT, width=10)),
+        ("nfft:", tk.Entry(frame, text=vals.nfft, justify=tk.RIGHT, width=10)),
+        ("noverlap:", tk.Entry(frame, text=vals.noverlap, justify=tk.RIGHT, width=10)),
+    ]
+    make_grid(frame, grid)
+    
     frame = tk.LabelFrame(top, text="Filter")
     frame.pack(padx=5, pady=5, fill=tk.X)
-    
-    tk.Radiobutton(frame, text="None", variable=vals['do_filter'], value="none").grid(row=row, sticky="W", columnspan=3)
-    row += 1
-    
-    tk.Radiobutton(frame, text="Highpass", variable=vals['do_filter'], value="highpass").grid(row=row, sticky="W", columnspan=3)
-    row += 1
-    for k in ['cutoff_freq']:
-        tk.Label(frame, text=lbls[k]).grid(row=row, column=1, sticky="W")
-        tk.Entry(frame, text=vals[k]).grid(row=row, column=2, sticky="W")
-        row += 1
-
-    tk.Radiobutton(frame, text="Bandpass", variable=vals['do_filter'], value="bandpass").grid(row=row, sticky="W", columnspan=3)
-    row += 1
-    for k in ['low_cutoff_freq', 'high_cutoff_freq']:
-        tk.Label(frame, text=lbls[k]).grid(row=row, column=1, sticky="W")
-        tk.Entry(frame, text=vals[k]).grid(row=row, column=2, sticky="W")
-        row += 1
-
+    grid = [
+        (Item( tk.Radiobutton(frame, text="None", variable=vals.do_filter, value="none"), columnspan=4),),
+        (Item( tk.Radiobutton(frame, text="Highpass", variable=vals.do_filter, value="highpass"), columnspan=4),),
+        (None, "Cutoff:", tk.Entry(frame, text=vals.cutoff_freq, justify=tk.RIGHT, width=10), "kHz"),
+        (Item(  tk.Radiobutton(frame, text="Bandpass", variable=vals.do_filter, value="bandpass"), columnspan=4),),
+        (None, "Low cutoff:", tk.Entry(frame, text=vals.low_cutoff_freq, justify=tk.RIGHT, width=10), "kHz"),
+        (None, "High cutoff:", tk.Entry(frame, text=vals.high_cutoff_freq, justify=tk.RIGHT, width=10), "kHz"),
+    ]
+    make_grid(frame, grid)
     frame.grid_columnconfigure(0,minsize=25)
     
     def ok(event=None):
         import traceback
         try:
-            kwargs = {k:v.get() for k,v in vals.iteritems()}
-            if reader is None:
+            kwargs = vals.get()
+
+            if not reader:
                  open(kwargs['fname']).close()
                  kwargs['filetype'] = 'wfs'
+                 if kwargs.pop('skip_signals') != 0:
+                     raise ValueError("Default WFS reader can not skip frames.")
             else:
                 kwargs['_reader'] = reader
+                reader.skip_frames = kwargs.pop('skip_signals')
                 kwargs['filetype'] = 'custom'
  
             open(kwargs['param_txt_filename'], "w").close()
             askc_run(**kwargs)
         except IOError,e:
+            traceback.print_exc()
             tkMessageBox.showwarning("Bad input", "[Errno {0.errno}] {0.strerror}: {0.filename!r}".format(e), parent=top)
         except ValueError,e:
+            traceback.print_exc()
             tkMessageBox.showwarning("Bad input", e.message, parent=top)
         except Exception,e:
             traceback.print_exc()

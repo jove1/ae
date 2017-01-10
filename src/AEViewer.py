@@ -39,6 +39,7 @@ import ae
 try:
     from ae import askc_wrap
 except ImportError:
+    print "askc not found"
     askc_wrap = None
 
 class Dialog(tkSimpleDialog.Dialog):
@@ -444,9 +445,12 @@ class AEViewer:
         if askc_wrap is None:
             return 
 
+        ax = self.fig.gca()
+        start,end = ax.get_xlim()
+
         reader = askc_wrap.AEReader(d=self.data)
         top = tk.Toplevel(self.root)
-        askc_wrap.gui(top, reader)
+        askc_wrap.gui(top, reader, time_range=(start,end))
 
 
 if __name__ == "__main__":
