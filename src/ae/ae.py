@@ -1,4 +1,5 @@
 #!/usr/bin/python 
+#coding: utf8
 
 def xpan(ax=None):
     """
@@ -232,7 +233,7 @@ class Data:
             d = np.load(cachefn)
             mins, maxs = d['mins'], d['maxs']
             self._min_max_cache[channel] = (mins,maxs)
-            #print "envelope in cache"
+            print "# envelope in cache"
             return (mins,maxs)
         except:
             pass
@@ -248,6 +249,7 @@ class Data:
         maxs.shape = (maxs.size,)
 
         self._min_max_cache[channel] = (mins,maxs)
+
         np.savez(cachefn, mins=mins, maxs=maxs)
 
         return mins, maxs
@@ -558,7 +560,7 @@ class SDCF(Data):
             assert np.alltrue( raw['data']['offset'] == offsets*16380 + pos)
 
     def raw_iter_blocks(self, start=0, stop=float('inf')):
-        import io, os
+        import os
 
         offset = 0
         buffer = np.empty(1, self.block_dtype)
@@ -567,7 +569,7 @@ class SDCF(Data):
         pos = start//block_size*long(block_size)
         seek = start//block_size*long(buffer.itemsize)
         for fname in self.fnames:
-            with io.open(fname, "rb", buffering=0) as fh:
+            with file(fname, "rb", buffering=0) as fh:
                 file_size = os.fstat(fh.fileno()).st_size
                 if seek < file_size:
                     fh.seek(seek)
@@ -601,20 +603,19 @@ class SDCF(Data):
 
 class ContigousBase(Data):
 
-    get_block_data = staticmethod(lambda d: d['data'])
+    get_block_data = staticmethod(lambda d: d)
  
     def check_block(self, pos, raw):
         pass
     
     def raw_iter_blocks(self, start=0, stop=float('inf')):
-        import io, struct
-        buffer = np.empty(8192, self.block_dtype)
+        buffer = np.empty(8*1024*1024/self.block_dtype.itemsize, self.block_dtype)
         block_size = self.get_block_data(buffer)[0,...,0].size
         
         pos = start//block_size*block_size
         seek = start//block_size*buffer.itemsize
-        with io.open(self.fname, "rb", buffering=0) as fh:
-            fh.seek( self._offset + seek)
+        with file(self.fname, "rb", buffering=0) as fh:
+            fh.seek(self._offset + seek)
             while True:
                 read = fh.readinto(buffer)
                 if read < buffer.size*buffer.itemsize:
@@ -630,8 +631,11 @@ class ContigousBase(Data):
         if remains:
             yield pos, buffer[:remains]
         if rest:
-            import warnings
-            warnings.warn("{} bytes left in the buffer".format(rest))
+            self.check_rest(buffer.view('B')[read-rest:read])
+
+    def check_rest(self, data):
+        import warnings
+        warnings.warn("{} bytes left in the buffer".format(data.size))
 
 class BDAT(ContigousBase):
     def __init__(self, fname, **kwargs):
@@ -650,10 +654,9 @@ class BDAT(ContigousBase):
         self.dataunit = "?"
         self.meta = None
 
-        self.calc_sizes(file_size-self._offset)
+        self.block_dtype = np.dtype((">i2", (1,)))
 
-    block_dtype = np.dtype([
-            ("data", ">i2", (1024,1))])
+        self.calc_sizes(file_size-self._offset)
 
 
 class WAV(ContigousBase):
@@ -664,23 +667,23 @@ class WAV(ContigousBase):
 
         import os
         with file(self.fname, "rb") as fh:
-            file_size = os.fstat(fh.fileno()).st_size
-            self._offset = self.parse_meta(fh.read(1024))
+            self._offset, size = self.parse_meta(fh.read(1024))
         
         assert self.meta['fmt'] == 1
-
-        self.block_dtype = np.dtype([
-            ("data", "<i{}".format(self.meta['bps']/8), (1024,self.meta['nchan']))])
+        type_code = {8: "<i1",
+                    16: "<i2",
+                    32: "<i4"}[self.meta['bps']]
+        self.block_dtype = np.dtype((type_code, (self.meta['nchan'],)))
 
         self.datascale = [1.]*self.meta['nchan']
         self.timescale = 1./self.meta['rate']
         self.timeunit = "s"
         self.dataunit = "?"
 
-        self.calc_sizes(file_size-self._offset)
+        self.calc_sizes(size)
 
     def parse_meta(self, data):
-        from struct import unpack_from,  calcsize
+        from struct import unpack_from
         self.meta = PrettyOrderedDict()
         offset = 0
         while offset < len(data):
@@ -701,7 +704,7 @@ class WAV(ContigousBase):
                 offset += 8 + size
 
             elif chunk == "data":
-                return offset + 8
+                return offset + 8, size
 
             else:
                 import warnings
@@ -710,8 +713,7 @@ class WAV(ContigousBase):
             
         raise ValueError("Data block not found")
 
-
-class WFS(Data):
+class WFS(ContigousBase):
 
     def __init__(self, fname, **kwargs):
         self.fname = fname 
@@ -723,18 +725,20 @@ class WFS(Data):
             self._offset = self.parse_meta(fh.read(1024), unknown_meta=kwargs.get("unknown_meta", False))
 
         # determine number of channels
-        import io
         buf = np.empty(10, self.ch_block_dtype)
-        with io.open(self.fname, "rb", buffering=0) as fh:
-            fh.seek( self._offset)
+        with file(self.fname, "rb", buffering=0) as fh:
+            fh.seek(self._offset)
             fh.readinto(buf)
         for ch in xrange(1,10):
-            if buf['chan'][ch] == ch +1:
+            if buf['chan'][ch] == ch + 1:
                 continue
             elif buf['chan'][ch] == 1:
                 break
             else:
                 raise ValueError("Invalid channels: %s".format(buf['chan']))
+        # put "start time" into meta
+        self.meta['start_time_x'] = buf['x']
+        self.meta['start_time_y'] = buf['y']
 
         self.block_dtype = np.dtype([ ('ch_data', self.ch_block_dtype, (ch,))])
 
@@ -805,7 +809,10 @@ class WFS(Data):
             ("id2", "u1"),
             ("unknown1", "S6"),
             ("chan", "u1"),
-            ("unknown2", "S19"),
+            ("zeros","S7"),
+            ("x", "u4"),
+            ("unknown2", "S4"),
+            ("y", "u4"),
             ("data", "i2", (1024))])
 
     get_block_data = staticmethod(lambda d: d['ch_data']['data'].swapaxes(-1,-2))
@@ -816,35 +823,73 @@ class WFS(Data):
             assert np.alltrue(raw['id1'] == 174) 
             assert np.alltrue(raw['id2'] == 1) 
 
-    def raw_iter_blocks(self, start=0, stop=float('inf')):
-        import io, struct
-        buffer = np.empty(8000, self.block_dtype)
-        block_size = self.get_block_data(buffer)[0,...,0].size
-        
-        pos = start//block_size*block_size
-        seek = start//block_size*buffer.itemsize
-        with io.open(self.fname, "rb", buffering=0) as fh:
-            fh.seek( self._offset + seek)
-            while True:
-                read = fh.readinto(buffer)
-                if read < buffer.size*buffer.itemsize:
-                    break
-                else:
-                    yield pos, buffer
-                    pos += buffer.size*block_size
-                    if pos > stop:
-                        return 
+    def check_rest(self, data):
+        if not np.alltrue(data == (7, 0, 15, 255, 255, 255, 255, 255, 127)):
+            import warnings
+            warnings.warn("{} bytes left in the buffer".format(data.size))
 
-        remains = read // buffer.itemsize
-        rest = read % buffer.itemsize
-        if remains:
-            yield pos, buffer[:remains]
-        if rest:
-            if rest == 9 and np.alltrue(buffer.view('B')[read-rest:read] == (7, 0, 15, 255, 255, 255, 255, 255, 127)):
-                pass
-            else:
-                import warnings
-                warnings.warn("{} bytes left in the buffer".format(rest))
+
+import sqlite3
+class TRADB(Data):
+
+    def __init__(self, fname, **kwargs):
+        self.fname = fname 
+        con = sqlite3.connect(fname)
+        con.row_factory = sqlite3.Row 
+        self.cur = con.cursor()
+        
+        self.cur.execute("SELECT Key,value FROM tr_globalinfo;")
+        self.meta = PrettyOrderedDict(self.cur)
+
+        self.cur.execute("SELECT Chan, ADC_µV FROM tr_params;")
+        ADC_uV = dict(self.cur)
+        
+        ret = self.cur.execute("SELECT DISTINCT Chan FROM tr_data ORDER BY Chan;").fetchall()
+        self.channels = len(ret)
+        self.meta['_Chan'] = [x[0] for x in ret]
+
+        ret = self.cur.execute("SELECT DISTINCT SampleRate FROM tr_data;").fetchall()
+        assert len(ret) == 1 # only support one DISTINCT SampleRate
+        self.meta['_SampleRate'] = ret[0][0]
+
+        ret = self.cur.execute("SELECT DISTINCT Samples FROM tr_data;").fetchall()
+        assert len(ret) == 1 # only support one frame size (DISTINCT Samples)
+        self.meta['_Samples'] = ret[0][0]
+
+        size = self.cur.execute("SELECT count(TRAI) FROM tr_data;").fetchone()[0]
+        self.shape = (size/self.channels, self.meta['_Samples']) 
+
+        assert self.meta['BytesPerSample'] == '2'
+        self.dtype = np.dtype("<i2")
+
+        self.timescale = 1./self.meta['_SampleRate']
+        self.timeunit = "s"
+
+        self.datascale = [ ADC_uV[ch]*2e-6 for ch in self.meta['_Chan'] ]
+        self.dataunit = "V"
+        
+        self.size = np.prod(self.shape)
+        
+    get_block_data = staticmethod(lambda d: d.swapaxes(-1,-2))
+ 
+    def check_block(self, pos, raw):
+        pass
+    
+    def raw_iter_blocks(self, start=0, stop=float('inf')):
+        d = np.empty((1, self.channels, self.shape[-1]),dtype=self.dtype)
+
+        pos = start//self.shape[-1]*self.shape[-1] 
+        start = pos*10000000//self.meta['_SampleRate']
+
+        self.cur.execute("SELECT Time, Data FROM tr_data WHERE Time >= ? ORDER BY TRAI;", (start,)) # ORDER BY Time,Chan; ?
+        while pos < stop:
+            rows = [ self.cur.next() for ch in self.meta['_Chan'] ]
+            t = rows[0]['Time']
+            pos = t*self.meta['_SampleRate'] / 10000000
+            for i,r in enumerate(rows):
+                assert r['Time'] == t
+                d[0,i] = np.frombuffer(r['Data'], dtype=self.dtype)
+            yield pos, d
 
 def open(fname=None, **kwargs):
     """
@@ -860,6 +905,7 @@ def open(fname=None, **kwargs):
                      ('SDCF', '*-000000.sdcf'),
                      ('BDAT', '.bdat'),
                      ('WAV', '.wav'),
+                     ('TRADB', '.tradb'),
                      ]
         anytype = ('Any AE file', ' '.join(pattern for name, pattern in filetypes))
 
@@ -891,6 +937,8 @@ def open(fname=None, **kwargs):
         return BDAT(fname, **kwargs)
     elif ext == ".wav":
         return WAV(fname, **kwargs)
+    elif ext == ".tradb":
+        return TRADB(fname, **kwargs)
     else:
         raise NotImplementedError("Unknown format {}".format(ext))
 

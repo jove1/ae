@@ -39,6 +39,8 @@ import ae
 try:
     from ae import askc_wrap
 except ImportError:
+    import traceback
+    traceback.print_exc()
     print "askc not found"
     askc_wrap = None
 
@@ -342,7 +344,9 @@ class AEViewer:
         try:
             self.data = ae.open(fname, parent=self.root)
             print "f = ae.open({!r})".format(self.data.fname)
-        except ValueError:
+        except (ValueError, AssertionError):
+            import traceback
+            traceback.print_exc()
             self.data = None
             return 
         self.data.progress = self.progress
