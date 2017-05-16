@@ -739,6 +739,7 @@ class WFS(ContigousBase):
         # put "start time" into meta
         self.meta['start_time_x'] = buf['x']
         self.meta['start_time_y'] = buf['y']
+        self.meta['start_time'] = buf['y'][0]*2/self.meta['hwsetup']['rate']
 
         self.block_dtype = np.dtype([ ('ch_data', self.ch_block_dtype, (ch,))])
 
