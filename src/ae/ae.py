@@ -880,13 +880,15 @@ class TRADB(Data):
         d = np.empty((1, self.channels, self.shape[-1]),dtype=self.dtype)
 
         pos = start//self.shape[-1]*self.shape[-1] 
-        start = pos*10000000//self.meta['_SampleRate']
+        #start = pos*10000000//self.meta['_SampleRate'] # wrong for some files
+        start = pos*32000//self.meta['_Samples']
 
         self.cur.execute("SELECT Time, Data FROM tr_data WHERE Time >= ? ORDER BY TRAI;", (start,)) # ORDER BY Time,Chan; ?
         while pos < stop:
             rows = [ self.cur.next() for ch in self.meta['_Chan'] ]
             t = rows[0]['Time']
-            pos = t*self.meta['_SampleRate'] / 10000000
+            #pos = t*self.meta['_SampleRate'] / 10000000 # wrong for some files
+            pos = t*self.meta['_Samples']/32000
             for i,r in enumerate(rows):
                 assert r['Time'] == t
                 d[0,i] = np.frombuffer(r['Data'], dtype=self.dtype)
